@@ -55,25 +55,30 @@ public class SecurityConfiguration {
     private String JWT_SECRET_KEY;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+        AuthenticationManager authenticationManager) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests((auth) -> auth
-                        .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/api/v1/**").hasAnyRole("USER")
-                        .requestMatchers("/v3/api-docs/**","/swagger-ui/**").permitAll()
-                )
-                .oauth2ResourceServer(configurer ->
-                    configurer.jwt(jwtConfigurer -> jwtConfigurer.authenticationManager(authenticationManager)))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
-                        .accessDeniedHandler(new BearerTokenAccessDeniedHandler())
-                ).addFilterBefore(authenticationFilter(authenticationManager), BearerTokenAuthenticationFilter.class);
+            .csrf(AbstractHttpConfigurer::disable)
+            .authorizeHttpRequests((auth) -> auth
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/api/v1/**").hasAnyRole("USER","ADMIN")
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
+            )
+            .oauth2ResourceServer(configurer ->
+                configurer.jwt(
+                    jwtConfigurer -> jwtConfigurer.authenticationManager(authenticationManager)))
+            .sessionManagement(
+                session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
+                .accessDeniedHandler(new BearerTokenAccessDeniedHandler())
+            ).addFilterBefore(authenticationFilter(authenticationManager),
+                BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 
-    private UsernamePasswordJwtTokenAuthenticationFilter authenticationFilter(AuthenticationManager authenticationManager) {
+    private UsernamePasswordJwtTokenAuthenticationFilter authenticationFilter(
+        AuthenticationManager authenticationManager) {
         return new UsernamePasswordJwtTokenAuthenticationFilter(authenticationManager);
     }
 
@@ -88,7 +93,8 @@ public class SecurityConfiguration {
         jwtGrantedAuthoritiesConverter.setAuthoritiesClaimName(JWT_AUTHORITIES_CLAIM_NAME);
         jwtGrantedAuthoritiesConverter.setAuthorityPrefix("");
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
+        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(
+            jwtGrantedAuthoritiesConverter);
         return jwtAuthenticationConverter;
     }
 
@@ -100,7 +106,8 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(List<AuthenticationProvider> authenticationProviderList) {
+    public AuthenticationManager authenticationManager(
+        List<AuthenticationProvider> authenticationProviderList) {
         return new ProviderManager(authenticationProviderList);
     }
 
@@ -118,7 +125,7 @@ public class SecurityConfiguration {
     @Bean
     public OctetSequenceKey octetSequenceKey() {
         byte[] decodedKey = Base64.from(JWT_SECRET_KEY).decode();
-        SecretKey secretKey= new SecretKeySpec(decodedKey, "NONE");
+        SecretKey secretKey = new SecretKeySpec(decodedKey, "NONE");
         return new OctetSequenceKey.Builder(secretKey)
             .algorithm(JWSAlgorithm.HS512)
             .issueTime(Date.from(Instant.now()))
@@ -132,7 +139,8 @@ public class SecurityConfiguration {
 
     @Bean
     public JwtDecoder jwtDecoder(OctetSequenceKey octetSequenceKey) {
-        return NimbusJwtDecoder.withSecretKey(octetSequenceKey.toSecretKey()).macAlgorithm(MacAlgorithm.HS512).build();
+        return NimbusJwtDecoder.withSecretKey(octetSequenceKey.toSecretKey())
+            .macAlgorithm(MacAlgorithm.HS512).build();
     }
 
 }

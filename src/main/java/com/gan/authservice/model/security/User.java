@@ -1,29 +1,22 @@
 package com.gan.authservice.model.security;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.gan.authservice.model.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "app_user",uniqueConstraints = @UniqueConstraint(columnNames = "username"))
-public class User {
+@Table(name = "app_user", uniqueConstraints = @UniqueConstraint(columnNames = "username"))
+public class User extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @JsonIgnore
-    private Long id;
-    @Column(name="username", nullable = false)
+    @Column(name = "username", nullable = false)
     private String username;
     @Column(name = "password", nullable = false)
     private String password;
-    @JoinColumn(name="role_id", referencedColumnName = "id")
+    @JoinColumn(name = "role_id", referencedColumnName = "id")
     @ManyToOne
     private Role role;
     @Column(name = "first_name", nullable = false)
@@ -59,10 +52,6 @@ public class User {
 
     public Role getRole() {
         return role;
-    }
-
-    public Long getId() {
-        return id;
     }
 
     public String getFirstName() {

@@ -13,16 +13,18 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 public class UsernamePasswordJwtTokenAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
-    public UsernamePasswordJwtTokenAuthenticationFilter(AuthenticationManager authenticationManager) {
+    public UsernamePasswordJwtTokenAuthenticationFilter(
+        AuthenticationManager authenticationManager) {
         super(authenticationManager);
         setFilterProcessesUrl(LOGIN_URL);
         setAuthenticationSuccessHandler(new CustomSuccessfulAuthenticationHandler());
     }
 
     @Override
-    protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
+    protected void successfulAuthentication(HttpServletRequest request,
+        HttpServletResponse response, FilterChain chain,
         Authentication authResult) throws IOException, ServletException {
-        super.successfulAuthentication(request,response,chain,authResult);
+        super.successfulAuthentication(request, response, chain, authResult);
         chain.doFilter(request, response);
     }
 

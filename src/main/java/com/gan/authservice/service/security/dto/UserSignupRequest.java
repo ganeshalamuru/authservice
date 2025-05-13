@@ -1,9 +1,10 @@
 package com.gan.authservice.service.security.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 import lombok.Getter;
 
-@Getter
+@Data
 public class UserSignupRequest {
 
     @NotBlank
@@ -14,6 +15,5 @@ public class UserSignupRequest {
     private String firstName;
     @NotBlank
     private String lastName;
-
 
 }

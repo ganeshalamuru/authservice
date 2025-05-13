@@ -17,5 +17,9 @@ CREATE TABLE IF NOT EXISTS app_user
     password              VARCHAR(255)      NOT NULL,
     role_id               BIGINT            NOT NULL REFERENCES app_role (id),
     first_name            VARCHAR(100)      NOT NULL,
-    last_name             VARCHAR(100)      NOT NULL
+    last_name             VARCHAR(100)      NOT NULL,
+    created_at            BIGINT            NOT NULL,
+    updated_at            BIGINT            NOT NULL,
+    active                BOOLEAN           NOT NULL,
+    deleted               BOOLEAN           NOT NULL
 );

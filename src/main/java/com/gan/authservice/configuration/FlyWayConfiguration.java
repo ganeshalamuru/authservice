@@ -23,19 +23,18 @@ public class FlyWayConfiguration {
     @Bean
     public DataSource getDatasource() {
         return DataSourceBuilder.create()
-                .driverClassName(driverClassName)
-                .url(url)
-                .username(username)
-                .password(password)
-                .build();
+            .driverClassName(driverClassName)
+            .url(url)
+            .username(username)
+            .password(password)
+            .build();
     }
 
     @Bean(initMethod = "migrate")
     public Flyway flyway() {
         return new Flyway(Flyway.configure()
-                .baselineOnMigrate(true)
-                .dataSource(getDatasource()));
+            .baselineOnMigrate(true)
+            .dataSource(getDatasource()));
     }
-
 
 }

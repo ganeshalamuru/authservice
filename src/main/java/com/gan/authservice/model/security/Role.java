@@ -23,7 +23,7 @@ public class Role {
 
     }
 
-    public Role (RoleName name) {
+    public Role(RoleName name) {
         this.name = name;
     }
 

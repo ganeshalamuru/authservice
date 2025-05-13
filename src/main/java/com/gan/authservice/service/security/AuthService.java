@@ -35,9 +35,11 @@ public class AuthService {
 
     public void createUser(UserSignupRequest userSignupRequest) {
         Role role = roleRepository.findByName(RoleName.USER);
-        User user = new User(userSignupRequest.getUsername(), passwordEncoder.encode(userSignupRequest.getPassword()), role);
+        User user = new User(userSignupRequest.getUsername(),
+            passwordEncoder.encode(userSignupRequest.getPassword()), role);
         user.setFirstName(userSignupRequest.getFirstName());
         user.setLastName(userSignupRequest.getLastName());
+        user.setMetaData();
         userRepository.save(user);
     }
 
@@ -58,7 +60,5 @@ public class AuthService {
         String accessTokenValue = this.encoder.encode(jwtEncoderParameters).getTokenValue();
         return new AccessTokenResponse(accessTokenValue, expiresAt.getEpochSecond());
     }
-
-
 
 }

@@ -19,12 +19,12 @@ public class UserResponse {
 
     public static UserResponse createResponse(User user) {
         return UserResponse.builder()
-                .id(user.getId())
-                .username(user.getUsername())
-                .role(user.getRole())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .build();
+            .id(user.getId())
+            .username(user.getUsername())
+            .role(user.getRole())
+            .firstName(user.getFirstName())
+            .lastName(user.getLastName())
+            .build();
     }
 
 }
