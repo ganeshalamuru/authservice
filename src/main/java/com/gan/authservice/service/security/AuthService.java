@@ -31,6 +31,7 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -79,8 +80,8 @@ public class AuthService {
         return new AccessTokenResponse(accessTokenValue, user.getId().toString());
     }
 
-    public void logout(String userId) {
-        UserToken userToken = userTokenRepository.findByUserId(UUID.fromString(userId));
+    public void logout(String userId, JwtAuthenticationToken authToken) {
+        UserToken userToken = userTokenRepository.findByUserIdAndAccessTokenAndStatus(UUID.fromString(userId), authToken.getToken().getTokenValue(), Status.ACTIVE);
         userToken.setStatus(Status.INACTIVE);
         userToken.setDeletedAt(LocalDateTime.now());
         redisRepository.delete(userId);

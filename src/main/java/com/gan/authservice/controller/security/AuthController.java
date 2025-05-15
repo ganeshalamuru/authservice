@@ -6,12 +6,16 @@ import com.gan.authservice.service.security.dto.UserLoginRequest;
 import com.gan.authservice.service.security.dto.UserSignupRequest;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthentication;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -43,9 +47,12 @@ public class AuthController {
         return new ResponseEntity<>(authService.generateToken(authentication), HttpStatus.OK);
     }
 
+
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @PostMapping(value = "/logout/{userId}")
-    public ResponseEntity<String> logout(@PathVariable("userId") String userId) {
-        authService.logout(userId);
+    public ResponseEntity<String> logout(@PathVariable("userId") String userId, JwtAuthenticationToken token) {
+        authService.logout(userId, token);
         return new ResponseEntity<>("Successfully logged out", HttpStatus.OK);
     }
 
