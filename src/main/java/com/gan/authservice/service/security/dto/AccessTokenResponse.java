@@ -1,16 +1,13 @@
 package com.gan.authservice.service.security.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data
+@AllArgsConstructor
 public class AccessTokenResponse {
 
     private String accessToken;
-    private long expiresAt;
-
-    public AccessTokenResponse(String accessToken, long expiresAt) {
-        this.accessToken = accessToken;
-        this.expiresAt = expiresAt;
-    }
+    private String userId;
 
 }

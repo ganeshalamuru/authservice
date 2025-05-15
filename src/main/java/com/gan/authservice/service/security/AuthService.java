@@ -3,13 +3,19 @@ package com.gan.authservice.service.security;
 import static com.gan.authservice.constants.JWTConstants.JWT_AUTHORITIES_CLAIM_NAME;
 import static com.gan.authservice.constants.JWTConstants.JWT_ISSUER;
 
+import com.gan.authservice.model.security.CustomUserPrinciple;
 import com.gan.authservice.model.security.Role;
 import com.gan.authservice.model.security.User;
+import com.gan.authservice.model.security.UserCredential;
+import com.gan.authservice.model.security.UserToken;
 import com.gan.authservice.model.security.enums.RoleName;
 import com.gan.authservice.repository.RoleRepository;
+import com.gan.authservice.repository.UserCredentialRepository;
 import com.gan.authservice.repository.UserRepository;
+import com.gan.authservice.repository.UserTokenRepository;
 import com.gan.authservice.service.security.dto.AccessTokenResponse;
 import com.gan.authservice.service.security.dto.UserSignupRequest;
+import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.stream.Collectors;
@@ -28,23 +34,27 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final UserCredentialRepository userCredentialRepository;
+    private final UserTokenRepository userTokenRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtEncoder encoder;
     private final JwsHeader jwsHeader;
 
+    @Transactional
     public void createUser(UserSignupRequest userSignupRequest) {
         Role role = roleRepository.findByName(RoleName.USER);
-        User user = new User(userSignupRequest.getUsername(),
-            passwordEncoder.encode(userSignupRequest.getPassword()), role);
-        user.setFirstName(userSignupRequest.getFirstName());
-        user.setLastName(userSignupRequest.getLastName());
-        user.setMetaData();
-        userRepository.save(user);
+        User user = new User(userSignupRequest.getFirstName(), userSignupRequest.getLastName(), role);
+        UserCredential userCredential = new UserCredential(user, userSignupRequest.getUsername(),
+            userSignupRequest.getPassword(), passwordEncoder.encode(userSignupRequest.getPassword()));
+        userCredential.setUser(user);
+        userCredentialRepository.save(userCredential);
     }
 
     public AccessTokenResponse generateToken(Authentication authentication) {
         Instant now = Instant.now();
+        CustomUserPrinciple userPrinciple = (CustomUserPrinciple) authentication.getPrincipal();
+        User user = userPrinciple.getUserCredential().getUser();
         Instant expiresAt = now.plusSeconds(Duration.ofHours(1).toSeconds());
         String scope = authentication.getAuthorities().stream()
             .map(GrantedAuthority::getAuthority)
@@ -58,7 +68,9 @@ public class AuthService {
             .build();
         JwtEncoderParameters jwtEncoderParameters = JwtEncoderParameters.from(jwsHeader, claims);
         String accessTokenValue = this.encoder.encode(jwtEncoderParameters).getTokenValue();
-        return new AccessTokenResponse(accessTokenValue, expiresAt.getEpochSecond());
+        UserToken userToken = new UserToken(user, accessTokenValue);
+        userTokenRepository.save(userToken);
+        return new AccessTokenResponse(accessTokenValue, user.getId().toString());
     }
 
 }

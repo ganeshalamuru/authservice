@@ -1,71 +1,58 @@
 package com.gan.authservice.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
-import java.time.Instant;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import java.time.LocalDateTime;
+import java.util.UUID;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+import org.hibernate.annotations.UuidGenerator;
 
 @MappedSuperclass
+@Getter
+@Setter
+@ToString
+@NoArgsConstructor
+@AllArgsConstructor
 public abstract class BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @JsonIgnore
-    private Long id;
-    @Column(name = "created_at", nullable = false)
-    private Long createdAt;
+    @UuidGenerator
+    @Column(name = "id", updatable = false, nullable = false, columnDefinition = "UUID")
+    private UUID id;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
     @Column(name = "updated_at", nullable = false)
-    private Long updatedAt;
-    @Column(name = "active", nullable = false)
-    private boolean active;
-    @Column(name = "deleted", nullable = false)
-    private boolean deleted;
+    private LocalDateTime updatedAt;
 
-    public Long getCreatedAt() {
-        return createdAt;
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private Status status;
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+        this.status = Status.ACTIVE;
     }
 
-    public Long getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public boolean isDeleted() {
-        return deleted;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setUpdatedAt(Long updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
-    }
-
-    public void setDeleted(boolean deleted) {
-        this.deleted = deleted;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setMetaData() {
-        long curTime = Instant.now().toEpochMilli();
-        this.createdAt = curTime;
-        this.updatedAt = curTime;
-        this.active = false;
-        this.deleted = false;
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 
 }
