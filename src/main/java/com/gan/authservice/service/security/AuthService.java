@@ -3,12 +3,14 @@ package com.gan.authservice.service.security;
 import static com.gan.authservice.constants.JWTConstants.JWT_AUTHORITIES_CLAIM_NAME;
 import static com.gan.authservice.constants.JWTConstants.JWT_ISSUER;
 
+import com.gan.authservice.model.Status;
 import com.gan.authservice.model.security.CustomUserPrinciple;
 import com.gan.authservice.model.security.Role;
 import com.gan.authservice.model.security.User;
 import com.gan.authservice.model.security.UserCredential;
 import com.gan.authservice.model.security.UserToken;
 import com.gan.authservice.model.security.enums.RoleName;
+import com.gan.authservice.repository.RedisRepository;
 import com.gan.authservice.repository.RoleRepository;
 import com.gan.authservice.repository.UserCredentialRepository;
 import com.gan.authservice.repository.UserRepository;
@@ -18,6 +20,8 @@ import com.gan.authservice.service.security.dto.UserSignupRequest;
 import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -37,6 +41,7 @@ public class AuthService {
     private final UserCredentialRepository userCredentialRepository;
     private final UserTokenRepository userTokenRepository;
     private final RoleRepository roleRepository;
+    private final RedisRepository redisRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtEncoder encoder;
     private final JwsHeader jwsHeader;
@@ -70,7 +75,16 @@ public class AuthService {
         String accessTokenValue = this.encoder.encode(jwtEncoderParameters).getTokenValue();
         UserToken userToken = new UserToken(user, accessTokenValue);
         userTokenRepository.save(userToken);
+        redisRepository.save(user.getId().toString(), accessTokenValue);
         return new AccessTokenResponse(accessTokenValue, user.getId().toString());
+    }
+
+    public void logout(String userId) {
+        UserToken userToken = userTokenRepository.findByUserId(UUID.fromString(userId));
+        userToken.setStatus(Status.INACTIVE);
+        userToken.setDeletedAt(LocalDateTime.now());
+        redisRepository.delete(userId);
+        userTokenRepository.save(userToken);
     }
 
 }

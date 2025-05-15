@@ -12,9 +12,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -23,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
-
 
     @PostMapping("/signup")
     public ResponseEntity<String> createUser(@Valid @RequestBody UserSignupRequest userSignupRequest) {
@@ -40,6 +41,12 @@ public class AuthController {
         UserLoginRequest userLoginRequest,
         Authentication authentication) {
         return new ResponseEntity<>(authService.generateToken(authentication), HttpStatus.OK);
+    }
+
+    @PostMapping(value = "/logout/{userId}")
+    public ResponseEntity<String> logout(@PathVariable("userId") String userId) {
+        authService.logout(userId);
+        return new ResponseEntity<>("Successfully logged out", HttpStatus.OK);
     }
 
 }
