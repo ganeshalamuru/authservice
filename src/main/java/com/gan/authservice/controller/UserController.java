@@ -2,6 +2,9 @@ package com.gan.authservice.controller;
 
 import com.gan.authservice.service.UserService;
 import com.gan.authservice.service.dto.UserResponse;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @Parameter(name ="user-id", in= ParameterIn.HEADER, required = true, schema = @Schema(type = "string"))
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         return new ResponseEntity<>(userService.getAllUsers(), HttpStatus.OK);
     }
