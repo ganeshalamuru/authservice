@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS "app_user_credential" (
 CREATE TABLE IF NOT EXISTS "app_user_token" (
   "id" uuid PRIMARY KEY,
   "user_id" uuid NOT NULL REFERENCES app_user(id),
-  "access_token" VARCHAR(255) UNIQUE NOT NULL,
+  "access_token" VARCHAR(500) UNIQUE NOT NULL,
   "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   "updated_at" TIMESTAMP NOT NULL,
   "status" status_enum DEFAULT 'ACTIVE',
