@@ -3,20 +3,16 @@ package com.gan.authservice.configuration;
 import static com.gan.authservice.constants.JWTConstants.JWT_AUTHORITIES_CLAIM_NAME;
 
 import com.gan.authservice.service.security.UsernamePasswordJwtTokenAuthenticationFilter;
-import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.OctetSequenceKey;
+import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
-import com.nimbusds.jose.util.Base64;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
-import java.time.Instant;
-import java.util.Date;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.List;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,7 +27,9 @@ import org.springframework.security.config.core.GrantedAuthorityDefaults;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jose.jws.JwsAlgorithms;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -51,8 +49,12 @@ import org.springframework.security.web.SecurityFilterChain;
 @SecurityScheme(name = "bearerAuth", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat = "JWT", in = SecuritySchemeIn.HEADER)
 public class SecurityConfiguration {
 
-    @Value("${jwt.secret.key}")
-    private String JWT_SECRET_KEY;
+    @Value("${jwt.public.key}")
+    private RSAPublicKey publicKey;
+
+    @Value("${jwt.private.key}")
+    private RSAPrivateKey privateKey;
+
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
@@ -119,29 +121,18 @@ public class SecurityConfiguration {
 
     @Bean
     public JwsHeader jwsHeader() {
-        return JwsHeader.with(MacAlgorithm.HS512).build();
-    }
-
-    //JWK
-    @Bean
-    public OctetSequenceKey octetSequenceKey() {
-        byte[] decodedKey = Base64.from(JWT_SECRET_KEY).decode();
-        SecretKey secretKey = new SecretKeySpec(decodedKey, "NONE");
-        return new OctetSequenceKey.Builder(secretKey)
-            .algorithm(JWSAlgorithm.HS512)
-            .issueTime(Date.from(Instant.now()))
-            .build();
+        return JwsHeader.with(SignatureAlgorithm.RS256).build();
     }
 
     @Bean
-    public JwtEncoder jwtEncoder(JWK jwk) {
+    JwtDecoder jwtDecoder() {
+        return NimbusJwtDecoder.withPublicKey(this.publicKey).build();
+    }
+
+    @Bean
+    JwtEncoder jwtEncoder() {
+        JWK jwk = new RSAKey.Builder(this.publicKey).privateKey(this.privateKey).build();
         return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(jwk)));
-    }
-
-    @Bean
-    public JwtDecoder jwtDecoder(OctetSequenceKey octetSequenceKey) {
-        return NimbusJwtDecoder.withSecretKey(octetSequenceKey.toSecretKey())
-            .macAlgorithm(MacAlgorithm.HS512).build();
     }
 
 }
