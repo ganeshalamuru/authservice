@@ -17,7 +17,8 @@ public class JwtTokenValidation {
 
     private final RedisRepository redisRepository;
 
-    @Before("execution(* com.gan.authservice.controller.UserController.*(..))")
+    @Before("execution(* com.gan.authservice.controller..*.*(..)) && " +
+        "(@within(com.gan.authservice.configuration.annotation.JwtValid) || @annotation(com.gan.authservice.configuration.annotation.JwtValid))")
     public void validateJwtToken() {
         HttpServletRequest request = ((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes())).getRequest();
         String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION).split(" ")[1];

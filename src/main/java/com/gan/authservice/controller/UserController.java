@@ -1,5 +1,6 @@
 package com.gan.authservice.controller;
 
+import com.gan.authservice.configuration.annotation.JwtValid;
 import com.gan.authservice.service.UserService;
 import com.gan.authservice.service.dto.UserResponse;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
+@JwtValid
 public class UserController {
 
     private final UserService userService;
