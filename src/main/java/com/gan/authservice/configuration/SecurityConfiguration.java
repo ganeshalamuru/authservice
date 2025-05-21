@@ -27,8 +27,6 @@ import org.springframework.security.config.core.GrantedAuthorityDefaults;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jose.jws.JwsAlgorithms;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -54,7 +52,6 @@ public class SecurityConfiguration {
 
     @Value("${jwt.private.key}")
     private RSAPrivateKey privateKey;
-
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,

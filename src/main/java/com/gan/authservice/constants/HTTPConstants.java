@@ -7,5 +7,6 @@ import lombok.NoArgsConstructor;
 public final class HTTPConstants {
 
     public static final String LOGIN_URL = "/auth/login";
+    public static final String USER_ID_HEADER = "user-id";
 
 }

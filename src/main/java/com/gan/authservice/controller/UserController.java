@@ -1,5 +1,7 @@
 package com.gan.authservice.controller;
 
+import static com.gan.authservice.constants.HTTPConstants.USER_ID_HEADER;
+
 import com.gan.authservice.configuration.annotation.JwtValid;
 import com.gan.authservice.service.UserService;
 import com.gan.authservice.service.dto.UserResponse;
@@ -25,10 +27,9 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Parameter(name ="user-id", in= ParameterIn.HEADER, required = true, schema = @Schema(type = "string"))
+    @Parameter(name =USER_ID_HEADER, in= ParameterIn.HEADER, required = true, schema = @Schema(type = "string"))
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         return new ResponseEntity<>(userService.getAllUsers(), HttpStatus.OK);
     }
-
 
 }

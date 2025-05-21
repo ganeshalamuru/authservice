@@ -1,5 +1,7 @@
 package com.gan.authservice.configuration.aspect;
 
+import static com.gan.authservice.constants.HTTPConstants.USER_ID_HEADER;
+
 import com.gan.authservice.repository.RedisRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Objects;
@@ -22,7 +24,7 @@ public class JwtTokenValidation {
     public void validateJwtToken() {
         HttpServletRequest request = ((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes())).getRequest();
         String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION).split(" ")[1];
-        String userId = request.getHeader("user-id");
+        String userId = request.getHeader(USER_ID_HEADER);
         String currentToken = redisRepository.get(userId);
         if (Objects.isNull(accessToken) || Objects.isNull(currentToken) || !accessToken.equals(currentToken)) {
             throw new AuthorizationDeniedException("not authorized");
