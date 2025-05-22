@@ -1,41 +1,39 @@
-version: '3.9'
-
 services:
         app:
-                image: 'authservice-app'
+                image: 'ganeshalamuru/my-app:latest'
                 container_name: 'authservice-app-container'
                 ports:
                         - "8081:8081"
                 depends_on:
                         - postgres
+                        - redis
                 environment:
                         SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/authservice
                         SPRING_DATASOURCE_USERNAME: admin
-                        SPRING_DATASOURCE_PASSWORD: /run/secrets/db_password
-                        JWT_SECRET_KEY: /run/secrets/jwt_secret_key
-                        ADMIN_PASSWORD: /run/secrets/admin_password
+                        SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
+                        JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private_key
                 secrets:
                         - db_password
-                        - jwt_secret_key
-                        - admin_password
-
-
+                        - jwt_private_key
         postgres:
                 image: 'postgres:16.8-alpine'
-                container_name: 'mi-postgres-container'
+                container_name: 'authservice-postgres-container'
                 ports:
                         - "5434:5432"
                 environment:
                         POSTGRES_USER: admin
-                        POSTGRES_PASSWORD: /run/secrets/db_password
+                        POSTGRES_PASSWORD_FILE: /run/secrets/db_password
                         POSTGRES_DB: authservice
                 secrets:
                         - db_password
+        redis:
+                image: 'redis:8.0-alpine'
+                container_name: 'authservice-redis-container'
+                ports:
+                        - "6379:6379"
 
 secrets:
         db_password:
-                file: db_password.txt
-        jwt_secret_key:
-                file: jwt_secret_key.txt
-        admin_password:
-                file: admin_password.txt
+                file: ~/app-secrets/db_password.txt
+        jwt_private_key:
+                file: ~/app-secrets/jwt_private_key.txt

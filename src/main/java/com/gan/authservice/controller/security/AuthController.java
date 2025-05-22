@@ -38,16 +38,11 @@ public class AuthController {
     }
 
     @PostMapping(value = "/login", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public ResponseEntity<AccessTokenResponse> login(
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(
-            useParameterTypeSchema = true,
-            content = @Content(schema = @Schema(implementation = UserLoginRequest.class))
-        )
-        UserLoginRequest userLoginRequest,
-        Authentication authentication) {
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(useParameterTypeSchema = true,
+        content = @Content(schema = @Schema(implementation = UserLoginRequest.class)))
+    public ResponseEntity<AccessTokenResponse> login(Authentication authentication) {
         return new ResponseEntity<>(authService.generateToken(authentication), HttpStatus.OK);
     }
-
 
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")

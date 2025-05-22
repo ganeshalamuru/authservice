@@ -5,6 +5,7 @@ WORKDIR $APP_HOME
 COPY ./build.gradle ./gradlew ./gradlew.bat $APP_HOME
 COPY gradle $APP_HOME/gradle
 COPY ./src $APP_HOME/src/
+RUN chmod +x gradlew
 RUN ./gradlew clean build -x test
 
 FROM azul/zulu-openjdk-alpine:21-jre-headless

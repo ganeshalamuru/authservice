@@ -28,5 +28,4 @@ public class UsernamePasswordJwtTokenAuthenticationFilter extends UsernamePasswo
         chain.doFilter(request, response);
     }
 
-
 }

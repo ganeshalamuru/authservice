@@ -27,11 +27,7 @@ public class UserCredential extends BaseEntity {
     private User user;
     @Column(name = "username", nullable = false)
     private String username;
-    @Column(name = "plain_password", nullable = false)
-    private String plainPassword;
     @Column(name = "encrypted_password", nullable = false)
     private String encryptedPassword;
-
-
 
 }

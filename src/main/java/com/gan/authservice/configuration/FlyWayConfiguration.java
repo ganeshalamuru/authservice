@@ -16,9 +16,8 @@ public class FlyWayConfiguration {
     private String url;
     @Value("${spring.datasource.username}")
     private String username;
-    @Value("${spring.datasource.password}")
+    @Value("#{secretProvider.dbPassword}")
     private String password;
-
 
     @Bean
     public DataSource getDatasource() {

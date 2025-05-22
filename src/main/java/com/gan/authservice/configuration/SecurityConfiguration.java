@@ -10,8 +10,10 @@ import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import java.io.ByteArrayInputStream;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Base64;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +27,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.converter.RsaKeyConverters;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
@@ -50,12 +53,12 @@ public class SecurityConfiguration {
     @Value("${jwt.public.key}")
     private RSAPublicKey publicKey;
 
-    @Value("${jwt.private.key}")
-    private RSAPrivateKey privateKey;
+    @Value("#{secretProvider.jwtPrivateKey}")
+    private String b64PrivateKey;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
-        AuthenticationManager authenticationManager) throws Exception {
+        AuthenticationManager authenticationManager, JwtDecoder decoder) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests((auth) -> auth
@@ -66,7 +69,7 @@ public class SecurityConfiguration {
             )
             .oauth2ResourceServer(configurer ->
                 configurer.jwt(
-                    jwtConfigurer -> jwtConfigurer.authenticationManager(authenticationManager)))
+                    jwtConfigurer -> jwtConfigurer.authenticationManager(authenticationManager).decoder(decoder)))
             .sessionManagement(
                 session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions
@@ -122,13 +125,15 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    JwtDecoder jwtDecoder() {
+    public JwtDecoder jwtDecoder() {
         return NimbusJwtDecoder.withPublicKey(this.publicKey).build();
     }
 
     @Bean
-    JwtEncoder jwtEncoder() {
-        JWK jwk = new RSAKey.Builder(this.publicKey).privateKey(this.privateKey).build();
+    public JwtEncoder jwtEncoder() {
+        byte [] pk = Base64.getDecoder().decode(b64PrivateKey);
+        RSAPrivateKey rsaPrivateKey = RsaKeyConverters.pkcs8().convert(new ByteArrayInputStream(pk));
+        JWK jwk = new RSAKey.Builder(this.publicKey).privateKey(rsaPrivateKey).build();
         return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(jwk)));
     }
 

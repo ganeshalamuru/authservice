@@ -21,6 +21,7 @@ import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -51,8 +52,7 @@ public class AuthService {
     public void createUser(UserSignupRequest userSignupRequest) {
         Role role = roleRepository.findByName(RoleName.USER);
         User user = new User(userSignupRequest.getFirstName(), userSignupRequest.getLastName(), role);
-        UserCredential userCredential = new UserCredential(user, userSignupRequest.getUsername(),
-            userSignupRequest.getPassword(), passwordEncoder.encode(userSignupRequest.getPassword()));
+        UserCredential userCredential = new UserCredential(user, userSignupRequest.getUsername(), passwordEncoder.encode(userSignupRequest.getPassword()));
         userCredential.setUser(user);
         userCredentialRepository.save(userCredential);
     }
@@ -82,6 +82,9 @@ public class AuthService {
 
     public void logout(String userId, JwtAuthenticationToken authToken) {
         UserToken userToken = userTokenRepository.findByUserIdAndAccessTokenAndStatus(UUID.fromString(userId), authToken.getToken().getTokenValue(), Status.ACTIVE);
+        if (Objects.isNull(userToken)) {
+            throw new IllegalStateException("user token in missing");
+        }
         userToken.setStatus(Status.INACTIVE);
         userToken.setDeletedAt(LocalDateTime.now());
         redisRepository.delete(userId);
