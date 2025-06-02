@@ -44,7 +44,6 @@ public class AuthController {
         return new ResponseEntity<>(authService.generateToken(authentication), HttpStatus.OK);
     }
 
-
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @PostMapping(value = "/logout")
