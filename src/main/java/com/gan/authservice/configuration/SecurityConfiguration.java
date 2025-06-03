@@ -53,7 +53,7 @@ public class SecurityConfiguration {
     @Value("${jwt.public.key}")
     private RSAPublicKey publicKey;
 
-    @Value("${jwt.private.key}")
+    @Value("#{secretProvider.jwtPrivateKey}")
     private String b64PrivateKey;
 
     @Bean
@@ -131,6 +131,7 @@ public class SecurityConfiguration {
 
     @Bean
     public JwtEncoder jwtEncoder() {
+        System.out.println("b64pkey : "+b64PrivateKey);
         byte [] pk = Base64.getDecoder().decode(b64PrivateKey);
         RSAPrivateKey rsaPrivateKey = RsaKeyConverters.pkcs8().convert(new ByteArrayInputStream(pk));
         JWK jwk = new RSAKey.Builder(this.publicKey).privateKey(rsaPrivateKey).build();
