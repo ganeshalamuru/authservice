@@ -137,5 +137,4 @@ public class SecurityConfiguration {
         return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(jwk)));
     }
 
-
 }
