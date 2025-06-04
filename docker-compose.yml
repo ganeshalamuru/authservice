@@ -1,6 +1,6 @@
 services:
         app:
-                image: 'authservice-app'
+                image: 'ganeshalamuru/my-app:latest'
                 container_name: 'authservice-app-container'
                 ports:
                         - "8081:8081"
@@ -34,6 +34,6 @@ services:
 
 secrets:
         db_password:
-                file: ~/Documents/db_password.txt
+                file: ~/app-secrets/db_password.txt
         jwt_private_key:
-                file: ~/Documents/jwt_private_key.txt
+                file: ~/app-secrets/jwt_private_key.txt
