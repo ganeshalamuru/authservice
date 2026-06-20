@@ -1,30 +1,29 @@
 package com.gan.authservice.configuration;
 
+import com.gan.authservice.constants.DatabaseProperties;
 import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.flywaydb.core.Flyway;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+@RequiredArgsConstructor
 @Configuration
 public class FlyWayConfiguration {
 
-    @Value("${spring.datasource.driver-class-name}")
-    private String driverClassName;
-    @Value("${spring.datasource.url}")
-    private String url;
-    @Value("${spring.datasource.username}")
-    private String username;
+    private final DatabaseProperties databaseProperties;
+
     @Value("#{secretProvider.dbPassword}")
     private String password;
 
     @Bean
     public DataSource getDatasource() {
         return DataSourceBuilder.create()
-            .driverClassName(driverClassName)
-            .url(url)
-            .username(username)
+            .driverClassName(databaseProperties.getDriverClassName())
+            .url(databaseProperties.getUrl())
+            .username(databaseProperties.getUsername())
             .password(password)
             .build();
     }

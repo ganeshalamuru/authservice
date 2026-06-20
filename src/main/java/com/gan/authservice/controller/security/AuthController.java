@@ -34,14 +34,14 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<String> createUser(@Valid @RequestBody UserSignupRequest userSignupRequest) {
         authService.createUser(userSignupRequest);
-        return new ResponseEntity<>("Successfully signed up", HttpStatus.CREATED);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Successfully signed up");
     }
 
     @PostMapping(value = "/login", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     @io.swagger.v3.oas.annotations.parameters.RequestBody(useParameterTypeSchema = true,
         content = @Content(schema = @Schema(implementation = UserLoginRequest.class)))
     public ResponseEntity<AccessTokenResponse> login(Authentication authentication) {
-        return new ResponseEntity<>(authService.generateToken(authentication), HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(authService.generateToken(authentication));
     }
 
     @SecurityRequirement(name = "bearerAuth")
@@ -50,7 +50,7 @@ public class AuthController {
     @JwtValid
     public ResponseEntity<String> logout(@RequestHeader(USER_ID_HEADER) String userId, JwtAuthenticationToken token) {
         authService.logout(userId, token);
-        return new ResponseEntity<>("Successfully logged out", HttpStatus.OK);
+        return ResponseEntity.status (HttpStatus.OK).body("Successfully logged out");
     }
 
 }
