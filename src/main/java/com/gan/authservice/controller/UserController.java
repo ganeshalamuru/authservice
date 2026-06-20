@@ -29,7 +29,7 @@ public class UserController {
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @Parameter(name =USER_ID_HEADER, in= ParameterIn.HEADER, required = true, schema = @Schema(type = "string"))
     public ResponseEntity<List<UserResponse>> getAllUsers() {
-        return new ResponseEntity<>(userService.getAllUsers(), HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(userService.getAllUsers());
     }
 
 }

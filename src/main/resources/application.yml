@@ -1,0 +1,27 @@
+spring:
+    application:
+        name: authservice
+    data:
+        redis:
+            host: redis
+            port: 6379
+    datasource:
+        driver-class-name: org.postgresql.Driver
+        hikari:
+            data-source-properties:
+                tcpKeepAlive: true
+        password:
+            file: ${SPRING_DATASOURCE_PASSWORD_FILE}
+        url: ${SPRING_DATASOURCE_URL}
+        username: ${SPRING_DATASOURCE_USERNAME}
+jwt:
+    private:
+        key:
+            file: ${JWT_PRIVATE_KEY_FILE}
+    public:
+        key: classpath:publickey.pem
+server:
+    port: 8081
+springdoc:
+    swagger-ui:
+        tryItOutEnabled: true
