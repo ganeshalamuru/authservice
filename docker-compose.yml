@@ -16,7 +16,7 @@ services:
             - db_password
             - jwt_private_key
     postgres:
-        image: 'postgres:16.8-alpine'
+        image: 'postgres:18.4-alpine'
         container_name: 'authservice-postgres-container'
         ports:
             - "5434:5432"
