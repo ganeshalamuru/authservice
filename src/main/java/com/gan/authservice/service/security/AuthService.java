@@ -33,7 +33,9 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -50,6 +52,9 @@ public class AuthService {
 
     @Transactional
     public void createUser(UserSignupRequest userSignupRequest) {
+        if (userCredentialRepository.existsByUsername(userSignupRequest.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
+        }
         Role role = roleRepository.findByName(RoleName.USER);
         User user = new User(userSignupRequest.getFirstName(), userSignupRequest.getLastName(), role);
         UserCredential userCredential = new UserCredential(user, userSignupRequest.getUsername(), passwordEncoder.encode(userSignupRequest.getPassword()));
