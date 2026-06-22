@@ -6,7 +6,6 @@ services:
             - "8081:8081"
         depends_on:
             - postgres
-            - redis
         environment:
             SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/authservice
             SPRING_DATASOURCE_USERNAME: admin
@@ -26,11 +25,6 @@ services:
             POSTGRES_DB: authservice
         secrets:
             - db_password
-    redis:
-        image: 'redis:8.0-alpine'
-        container_name: 'authservice-redis-container'
-        ports:
-            - "6379:6379"
 
 secrets:
     db_password:

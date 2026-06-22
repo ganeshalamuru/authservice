@@ -32,15 +32,12 @@ local Postgres / secret files):
   (`authservice-client`). Defaults to `dev-client-secret` for local runs; set a real value outside
   dev. Related optional overrides: `OAUTH2_CLIENT_ID`, `OAUTH2_REDIRECT_URIS` (comma-separated),
   `OAUTH2_REFRESH_TOKEN_TTL`.
-- optional: `SPRING_DATA_REDIS_HOST` / `SPRING_DATA_REDIS_PORT` (Redis is no longer in the auth
-  path, so the app starts without it)
 
 ## Stack
 
 - **Java 25** toolchain, **Spring Boot 4.1**, Gradle (`build.gradle`, Groovy DSL).
 - **PostgreSQL** (JPA) + **Flyway** migrations in `src/main/resources/db/migration`.
 - **Spring Authorization Server** (`spring-security-oauth2-authorization-server`) for OAuth2/OIDC.
-- **Redis** dependency is still on the classpath but no longer used in the auth path.
 - **Lombok** (`@Data`, `@RequiredArgsConstructor`, etc.) — constructor injection via `@RequiredArgsConstructor` on `final` fields.
 - **springdoc-openapi** Swagger UI.
 - Base package: `com.gan.authservice`. Runs on port **8081**.
@@ -63,8 +60,9 @@ local Postgres / secret files):
   `oauth2_authorization_consent`) is persisted in Postgres via the JDBC services (Flyway `V3`).
 - The OAuth2 client (`authservice-client`) is seeded on startup by `RegisteredClientInitializer`
   (PKCE-required, secret from `OAUTH2_CLIENT_SECRET`). `/auth/signup` is the only remaining custom
-  auth endpoint (user registration); the legacy `app_user_token` table is now unused (cleanup in #6).
-- Redis is not in the auth path. See `IMPROVEMENTS.md` for the roadmap (items 1–5 done).
+  auth endpoint (user registration); the legacy `app_user_token` table was dropped in `V4`.
+- Redis has been removed entirely (it was never in the auth path). See `IMPROVEMENTS.md` for the
+  roadmap (items 1–7 done; SAS `oauth2_authorization` pruning intentionally deferred).
 
 ## Conventions
 
