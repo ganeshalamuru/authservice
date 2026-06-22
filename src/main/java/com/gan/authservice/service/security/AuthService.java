@@ -1,9 +1,8 @@
 package com.gan.authservice.service.security;
 
 import static com.gan.authservice.constants.JWTConstants.JWT_AUTHORITIES_CLAIM_NAME;
-import static com.gan.authservice.constants.JWTConstants.JWT_ISSUER;
-import static com.gan.authservice.constants.JWTConstants.JWT_USER_ID_CLAIM;
 
+import com.gan.authservice.constants.JwtProperties;
 import com.gan.authservice.model.Status;
 import com.gan.authservice.model.security.CustomUserPrinciple;
 import com.gan.authservice.model.security.Role;
@@ -22,6 +21,7 @@ import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -50,6 +50,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtEncoder encoder;
     private final JwsHeader jwsHeader;
+    private final JwtProperties jwtProperties;
 
     @Transactional
     public void createUser(UserSignupRequest userSignupRequest) {
@@ -72,12 +73,12 @@ public class AuthService {
             .map(GrantedAuthority::getAuthority)
             .collect(Collectors.joining(" "));
         JwtClaimsSet claims = JwtClaimsSet.builder()
-            .issuer(JWT_ISSUER)
+            .issuer(jwtProperties.getIssuer())
+            .audience(List.of(jwtProperties.getAudience()))
             .issuedAt(now)
             .expiresAt(expiresAt)
-            .subject(authentication.getName())
+            .subject(user.getId().toString())
             .claim(JWT_AUTHORITIES_CLAIM_NAME, scope)
-            .claim(JWT_USER_ID_CLAIM, user.getId().toString())
             .build();
         JwtEncoderParameters jwtEncoderParameters = JwtEncoderParameters.from(jwsHeader, claims);
         String accessTokenValue = this.encoder.encode(jwtEncoderParameters).getTokenValue();
@@ -88,7 +89,7 @@ public class AuthService {
     }
 
     public void logout(JwtAuthenticationToken authToken) {
-        String userId = authToken.getToken().getClaimAsString(JWT_USER_ID_CLAIM);
+        String userId = authToken.getToken().getSubject();
         UserToken userToken = userTokenRepository.findByUserIdAndAccessTokenAndStatus(UUID.fromString(userId), authToken.getToken().getTokenValue(), Status.ACTIVE);
         if (Objects.isNull(userToken)) {
             throw new IllegalStateException("user token in missing");

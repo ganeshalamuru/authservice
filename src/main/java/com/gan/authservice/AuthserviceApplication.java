@@ -1,12 +1,13 @@
 package com.gan.authservice;
 
 import com.gan.authservice.constants.DatabaseProperties;
+import com.gan.authservice.constants.JwtProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties(DatabaseProperties.class)
+@EnableConfigurationProperties({DatabaseProperties.class, JwtProperties.class})
 public class AuthserviceApplication {
 
 	public static void main(String[] args) {

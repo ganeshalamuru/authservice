@@ -145,9 +145,9 @@ If the goal is "authoritative server my other projects trust":
 
 ## 7. Suggested priority order
 
-1. **Fix username uniqueness + signup duplicate check** (correctness bug, low risk).
-2. **Stop trusting `X-User-Id`; derive identity from JWT `sub`** (security, low risk).
-3. **Use UUID as `sub`; add `aud` and a real `issuer`** (security, medium).
+1. ~~**Fix username uniqueness + signup duplicate check** (correctness bug, low risk).~~ ✅ Done — `existsByUsername` pre-check on signup + unique index migration.
+2. ~~**Stop trusting `X-User-Id`; derive identity from JWT `sub`** (security, low risk).~~ ✅ Done — identity now read from the JWT, `X-User-Id` header removed.
+3. ~~**Use UUID as `sub`; add `aud` and a real `issuer`** (security, medium).~~ ✅ Done — `sub` is the user UUID, configurable `aud`/`issuer` (`jwt.audience`/`jwt.issuer`), and the resource-server decoder now validates `iss` + `aud`.
 4. **Decide the token model** (stateless+JWKS vs introspection) — unblocks everything else.
 5. **Adopt Spring Authorization Server** (refresh tokens, JWKS, clients) — larger effort.
 6. **DB hardening** (FK indexes, hashed tokens, token cleanup).

@@ -1,7 +1,5 @@
 package com.gan.authservice.configuration.aspect;
 
-import static com.gan.authservice.constants.JWTConstants.JWT_USER_ID_CLAIM;
-
 import com.gan.authservice.repository.RedisRepository;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +23,7 @@ public class JwtTokenValidation {
         if (!(authentication instanceof JwtAuthenticationToken jwtAuthentication)) {
             throw new AuthorizationDeniedException("not authorized");
         }
-        String userId = jwtAuthentication.getToken().getClaimAsString(JWT_USER_ID_CLAIM);
+        String userId = jwtAuthentication.getToken().getSubject();
         String accessToken = jwtAuthentication.getToken().getTokenValue();
         String currentToken = redisRepository.get(userId);
         if (Objects.isNull(currentToken) || !accessToken.equals(currentToken)) {
