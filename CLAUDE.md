@@ -28,6 +28,10 @@ local Postgres / secret files):
 - `SPRING_DATASOURCE_PASSWORD_FILE` (path to the DB password file, e.g. `~/Documents/db_password.txt`)
 - `JWT_PRIVATE_KEY_FILE` (path to the base64 private key, e.g. `~/Documents/b64private.txt`)
 - `SUPER_ADMIN_PASSWORD` (e.g. `superadmin@123`)
+- optional: `OAUTH2_CLIENT_SECRET` — secret for the seeded Authorization Server client
+  (`authservice-client`). Defaults to `dev-client-secret` for local runs; set a real value outside
+  dev. Related optional overrides: `OAUTH2_CLIENT_ID`, `OAUTH2_REDIRECT_URIS` (comma-separated),
+  `OAUTH2_REFRESH_TOKEN_TTL`.
 - optional: `SPRING_DATA_REDIS_HOST` / `SPRING_DATA_REDIS_PORT` (Redis is no longer in the auth
   path, so the app starts without it)
 
@@ -35,19 +39,32 @@ local Postgres / secret files):
 
 - **Java 25** toolchain, **Spring Boot 4.1**, Gradle (`build.gradle`, Groovy DSL).
 - **PostgreSQL** (JPA) + **Flyway** migrations in `src/main/resources/db/migration`.
-- **Redis** for active-token tracking.
+- **Spring Authorization Server** (`spring-security-oauth2-authorization-server`) for OAuth2/OIDC.
+- **Redis** dependency is still on the classpath but no longer used in the auth path.
 - **Lombok** (`@Data`, `@RequiredArgsConstructor`, etc.) — constructor injection via `@RequiredArgsConstructor` on `final` fields.
 - **springdoc-openapi** Swagger UI.
 - Base package: `com.gan.authservice`. Runs on port **8081**.
 
 ## Auth model (current state)
 
-- Custom username/password filter → `DaoAuthenticationProvider`; JWT minted with `JwtEncoder` (RS256) in `AuthService.generateToken`.
-- **Stateless** token model: the self-issued JWT is validated by the Spring **resource server** on signature + `iss` + `aud` only — no per-request datastore lookup.
-- JWT `sub` = user **UUID**; roles in the `role` claim; configurable `iss`/`aud` via `jwt.issuer` / `jwt.audience`. Access-token TTL is `jwt.access-token-ttl` (default 15 min).
-- Signing key carries a `kid` (JWK thumbprint); public keys are served at `GET /oauth2/jwks` so consumers validate offline and keys can rotate.
-- Issued tokens are still recorded in Postgres (`app_user_token`) as an audit log; `logout` marks the row inactive but does **not** revoke the live token (no revocation before expiry until refresh tokens land — see #5). Redis is no longer in the auth path.
-- See `IMPROVEMENTS.md` for the roadmap and priority order (items 1–4 done).
+- **Spring Authorization Server (SAS)** drives auth: standard `/oauth2/authorize` + `/oauth2/token`
+  (Authorization Code + PKCE), `/oauth2/jwks`, `/oauth2/revoke`, and OIDC discovery
+  (`/.well-known/openid-configuration`). Config in `AuthorizationServerConfiguration`.
+- Users authenticate at the form-login page (`/login`) via `CustomDaoAuthenticationProvider` +
+  `CustomUserDetailsService`; SAS then issues the code → tokens. There is no custom login filter.
+- **Three security filter chains** (`@Order`): (1) SAS endpoints + OIDC, (2) stateless
+  resource-server for `/api/v1/**`, (3) default form-login chain (`/login`, `/auth/signup`, docs).
+- **Stateless** access tokens validated by the resource server on signature + `iss` + `aud` only.
+  A `JwtEncodingContext` customizer preserves: `sub` = user **UUID**, roles in the `role` claim,
+  `aud` = `jwt.audience`, `iss` = `jwt.issuer` (= `AuthorizationServerSettings.issuer`). Access-token
+  TTL is `jwt.access-token-ttl` (default 15 min); tokens are RS256, signed with the existing `kid`ed key.
+- **Refresh tokens with rotation** (`reuseRefreshTokens(false)`); refresh tokens can be revoked via
+  `/oauth2/revoke`. SAS state (`oauth2_authorization`, `oauth2_registered_client`,
+  `oauth2_authorization_consent`) is persisted in Postgres via the JDBC services (Flyway `V3`).
+- The OAuth2 client (`authservice-client`) is seeded on startup by `RegisteredClientInitializer`
+  (PKCE-required, secret from `OAUTH2_CLIENT_SECRET`). `/auth/signup` is the only remaining custom
+  auth endpoint (user registration); the legacy `app_user_token` table is now unused (cleanup in #6).
+- Redis is not in the auth path. See `IMPROVEMENTS.md` for the roadmap (items 1–5 done).
 
 ## Conventions
 

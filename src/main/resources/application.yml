@@ -23,6 +23,11 @@ jwt:
             file: ${JWT_PRIVATE_KEY_FILE}
     public:
         key: classpath:publickey.pem
+oauth2-client:
+    client-id: ${OAUTH2_CLIENT_ID:authservice-client}
+    client-secret: ${OAUTH2_CLIENT_SECRET:dev-client-secret}
+    redirect-uris: ${OAUTH2_REDIRECT_URIS:http://127.0.0.1:8081/login/oauth2/code/authservice,https://oauth.pstmn.io/v1/callback}
+    refresh-token-ttl: ${OAUTH2_REFRESH_TOKEN_TTL:24h}
 server:
     port: 8081
 springdoc:

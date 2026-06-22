@@ -1,12 +1,10 @@
 package com.gan.authservice.service.security;
 
-import com.gan.authservice.model.security.CustomUserPrinciple;
-import com.gan.authservice.model.security.User;
 import com.gan.authservice.model.security.UserCredential;
 import com.gan.authservice.repository.UserCredentialRepository;
-import com.gan.authservice.repository.UserRepository;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -16,7 +14,6 @@ import org.springframework.stereotype.Service;
 @Service("customUserDetailsService")
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRepository userRepository;
     private final UserCredentialRepository userCredentialRepository;
 
     @Override
@@ -25,6 +22,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         if (userCredential == null) {
             throw new UsernameNotFoundException(username);
         }
-        return new CustomUserPrinciple(userCredential);
+        // Return Spring Security's standard User so the Authorization Server can serialize the
+        // principal into the JDBC store out of the box. The user UUID is resolved from the username
+        // at token-mint time in the token customizer.
+        return User.withUsername(userCredential.getUsername())
+            .password(userCredential.getEncryptedPassword())
+            .authorities(new SimpleGrantedAuthority(userCredential.getUser().getRole().getName().name()))
+            .build();
     }
 }
