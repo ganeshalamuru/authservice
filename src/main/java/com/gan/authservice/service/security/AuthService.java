@@ -10,7 +10,6 @@ import com.gan.authservice.model.security.User;
 import com.gan.authservice.model.security.UserCredential;
 import com.gan.authservice.model.security.UserToken;
 import com.gan.authservice.model.security.enums.RoleName;
-import com.gan.authservice.repository.RedisRepository;
 import com.gan.authservice.repository.RoleRepository;
 import com.gan.authservice.repository.UserCredentialRepository;
 import com.gan.authservice.repository.UserRepository;
@@ -18,7 +17,6 @@ import com.gan.authservice.repository.UserTokenRepository;
 import com.gan.authservice.service.security.dto.AccessTokenResponse;
 import com.gan.authservice.service.security.dto.UserSignupRequest;
 import jakarta.transaction.Transactional;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -46,7 +44,6 @@ public class AuthService {
     private final UserCredentialRepository userCredentialRepository;
     private final UserTokenRepository userTokenRepository;
     private final RoleRepository roleRepository;
-    private final RedisRepository redisRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtEncoder encoder;
     private final JwsHeader jwsHeader;
@@ -68,7 +65,7 @@ public class AuthService {
         Instant now = Instant.now();
         CustomUserPrinciple userPrinciple = (CustomUserPrinciple) authentication.getPrincipal();
         User user = userPrinciple.getUserCredential().getUser();
-        Instant expiresAt = now.plusSeconds(Duration.ofHours(1).toSeconds());
+        Instant expiresAt = now.plus(jwtProperties.getAccessTokenTtl());
         String scope = authentication.getAuthorities().stream()
             .map(GrantedAuthority::getAuthority)
             .collect(Collectors.joining(" "));
@@ -84,7 +81,6 @@ public class AuthService {
         String accessTokenValue = this.encoder.encode(jwtEncoderParameters).getTokenValue();
         UserToken userToken = new UserToken(user, accessTokenValue);
         userTokenRepository.save(userToken);
-        redisRepository.save(user.getId().toString(), accessTokenValue);
         return new AccessTokenResponse(accessTokenValue, user.getId().toString());
     }
 
@@ -96,7 +92,6 @@ public class AuthService {
         }
         userToken.setStatus(Status.INACTIVE);
         userToken.setDeletedAt(LocalDateTime.now());
-        redisRepository.delete(userId);
         userTokenRepository.save(userToken);
     }
 

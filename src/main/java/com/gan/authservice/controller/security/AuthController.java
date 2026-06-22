@@ -1,6 +1,5 @@
 package com.gan.authservice.controller.security;
 
-import com.gan.authservice.configuration.annotation.JwtValid;
 import com.gan.authservice.service.security.AuthService;
 import com.gan.authservice.service.security.dto.AccessTokenResponse;
 import com.gan.authservice.service.security.dto.UserLoginRequest;
@@ -44,7 +43,6 @@ public class AuthController {
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @PostMapping(value = "/logout")
-    @JwtValid
     public ResponseEntity<String> logout(JwtAuthenticationToken token) {
         authService.logout(token);
         return ResponseEntity.status (HttpStatus.OK).body("Successfully logged out");

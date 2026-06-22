@@ -1,6 +1,8 @@
 package com.gan.authservice.constants;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.time.Duration;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -11,4 +13,6 @@ public class JwtProperties {
     private String issuer;
     @NotBlank
     private String audience;
+    @NotNull
+    private Duration accessTokenTtl = Duration.ofMinutes(15);
 }

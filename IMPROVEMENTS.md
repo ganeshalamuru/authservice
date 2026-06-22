@@ -148,7 +148,7 @@ If the goal is "authoritative server my other projects trust":
 1. ~~**Fix username uniqueness + signup duplicate check** (correctness bug, low risk).~~ ✅ Done — `existsByUsername` pre-check on signup + unique index migration.
 2. ~~**Stop trusting `X-User-Id`; derive identity from JWT `sub`** (security, low risk).~~ ✅ Done — identity now read from the JWT, `X-User-Id` header removed.
 3. ~~**Use UUID as `sub`; add `aud` and a real `issuer`** (security, medium).~~ ✅ Done — `sub` is the user UUID, configurable `aud`/`issuer` (`jwt.audience`/`jwt.issuer`), and the resource-server decoder now validates `iss` + `aud`.
-4. **Decide the token model** (stateless+JWKS vs introspection) — unblocks everything else.
+4. ~~**Decide the token model** (stateless+JWKS vs introspection) — unblocks everything else.~~ ✅ Done — committed to **stateless JWT + JWKS**. Added a `kid` (JWK thumbprint) to the signing key and a public `GET /oauth2/jwks` endpoint so resource servers validate offline and keys can rotate; shortened the access-token TTL to 15 min (`jwt.access-token-ttl`); removed the per-request Redis revocation (`@JwtValid` aspect deleted) so validation is truly stateless. **Accepted tradeoff:** access tokens cannot be revoked before expiry until refresh-token rotation lands in #5 — `logout` now only marks the `app_user_token` row inactive (audit), it does not revoke the live token.
 5. **Adopt Spring Authorization Server** (refresh tokens, JWKS, clients) — larger effort.
 6. **DB hardening** (FK indexes, hashed tokens, token cleanup).
 7. **Code hygiene** (split services, global error handler, tests, remove cruft).

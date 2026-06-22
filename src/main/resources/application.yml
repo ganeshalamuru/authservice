@@ -17,6 +17,7 @@ spring:
 jwt:
     issuer: ${JWT_ISSUER:http://localhost:8081}
     audience: ${JWT_AUDIENCE:authservice}
+    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
     private:
         key:
             file: ${JWT_PRIVATE_KEY_FILE}

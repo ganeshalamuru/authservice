@@ -12,6 +12,25 @@ Build, compile, and run this project through the **JetBrains (IntelliJ) MCP**, n
 
 Only fall back to `./gradlew` if the user explicitly asks.
 
+### ⚠️ Before suggesting `rm` of anything that affects how the app runs — back it up first
+
+Deleting files/folders that hold run-time configuration can silently break startup. This already
+happened once: deleting the **`.idea/`** folder (advised for a visual bug) wiped the IntelliJ run
+configuration that carried the app's environment variables, so the app could no longer start.
+
+Before recommending deletion of `.idea/`, run configurations, `~/app-secrets/`, env files, or any
+config that changes how the app runs or behaves: **call it out and back up the necessary values
+first.** The run configuration for `AuthserviceApplication` needs these env vars (point them at
+local Postgres / secret files):
+
+- `SPRING_DATASOURCE_URL` (e.g. `jdbc:postgresql://localhost:5432/authservice`)
+- `SPRING_DATASOURCE_USERNAME` (local run uses `postgres`; the docker-compose stack uses `admin`)
+- `SPRING_DATASOURCE_PASSWORD_FILE` (path to the DB password file, e.g. `~/Documents/db_password.txt`)
+- `JWT_PRIVATE_KEY_FILE` (path to the base64 private key, e.g. `~/Documents/b64private.txt`)
+- `SUPER_ADMIN_PASSWORD` (e.g. `superadmin@123`)
+- optional: `SPRING_DATA_REDIS_HOST` / `SPRING_DATA_REDIS_PORT` (Redis is no longer in the auth
+  path, so the app starts without it)
+
 ## Stack
 
 - **Java 25** toolchain, **Spring Boot 4.1**, Gradle (`build.gradle`, Groovy DSL).
@@ -24,10 +43,11 @@ Only fall back to `./gradlew` if the user explicitly asks.
 ## Auth model (current state)
 
 - Custom username/password filter → `DaoAuthenticationProvider`; JWT minted with `JwtEncoder` (RS256) in `AuthService.generateToken`.
-- Spring **resource server** validates the self-issued JWT (signature + `iss` + `aud`).
-- JWT `sub` = user **UUID**; roles in the `role` claim; configurable `iss`/`aud` via `jwt.issuer` / `jwt.audience`.
-- Tokens also stored in Postgres (`app_user_token`) and Redis (keyed by userId); a `@JwtValid` AOP aspect re-checks Redis for revocation.
-- See `IMPROVEMENTS.md` for the roadmap and priority order (items 1–3 done).
+- **Stateless** token model: the self-issued JWT is validated by the Spring **resource server** on signature + `iss` + `aud` only — no per-request datastore lookup.
+- JWT `sub` = user **UUID**; roles in the `role` claim; configurable `iss`/`aud` via `jwt.issuer` / `jwt.audience`. Access-token TTL is `jwt.access-token-ttl` (default 15 min).
+- Signing key carries a `kid` (JWK thumbprint); public keys are served at `GET /oauth2/jwks` so consumers validate offline and keys can rotate.
+- Issued tokens are still recorded in Postgres (`app_user_token`) as an audit log; `logout` marks the row inactive but does **not** revoke the live token (no revocation before expiry until refresh tokens land — see #5). Redis is no longer in the auth path.
+- See `IMPROVEMENTS.md` for the roadmap and priority order (items 1–4 done).
 
 ## Conventions
 
@@ -38,4 +58,4 @@ Only fall back to `./gradlew` if the user explicitly asks.
 
 ## Local infra
 
-`docker-compose.yml` provides postgres + redis + the app. Secrets come from `~/app-secrets/` files. Postgres is exposed on host port **5434**, Redis on **6379**.
+Postgres is exposed on host port **5432**

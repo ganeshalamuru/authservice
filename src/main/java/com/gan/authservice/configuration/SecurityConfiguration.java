@@ -4,8 +4,10 @@ import static com.gan.authservice.constants.JWTConstants.JWT_AUTHORITIES_CLAIM_N
 
 import com.gan.authservice.constants.JwtProperties;
 import com.gan.authservice.service.security.UsernamePasswordJwtTokenAuthenticationFilter;
-import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
@@ -70,7 +72,7 @@ public class SecurityConfiguration {
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests((auth) -> auth
                 .requestMatchers("/auth/logout/**").hasAnyRole("USER","ADMIN")
-                .requestMatchers("/auth/signup","/auth/login").permitAll()
+                .requestMatchers("/auth/signup","/auth/login","/oauth2/jwks").permitAll()
                 .requestMatchers("/api/v1/**").hasAnyRole("USER","ADMIN")
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
             )
@@ -127,8 +129,35 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    public JwsHeader jwsHeader() {
-        return JwsHeader.with(SignatureAlgorithm.RS256).build();
+    public JwsHeader jwsHeader(RSAKey rsaKey) {
+        return JwsHeader.with(SignatureAlgorithm.RS256).keyId(rsaKey.getKeyID()).build();
+    }
+
+    @Bean
+    public RSAKey rsaKey() {
+        RSAPrivateKey rsaPrivateKey = loadPrivateKey();
+        String kid;
+        try {
+            kid = new RSAKey.Builder(this.publicKey).build().computeThumbprint().toString();
+        } catch (JOSEException e) {
+            throw new IllegalStateException("Failed to compute JWK thumbprint", e);
+        }
+        return new RSAKey.Builder(this.publicKey)
+            .privateKey(rsaPrivateKey)
+            .keyID(kid)
+            .keyUse(KeyUse.SIGNATURE)
+            .algorithm(JWSAlgorithm.RS256)
+            .build();
+    }
+
+    @Bean
+    public JWKSet jwkSet(RSAKey rsaKey) {
+        return new JWKSet(rsaKey);
+    }
+
+    private RSAPrivateKey loadPrivateKey() {
+        byte[] pk = Base64.getDecoder().decode(b64PrivateKey);
+        return RsaKeyConverters.pkcs8().convert(new ByteArrayInputStream(pk));
     }
 
     @Bean
@@ -143,11 +172,8 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    public JwtEncoder jwtEncoder() {
-        byte [] pk = Base64.getDecoder().decode(b64PrivateKey);
-        RSAPrivateKey rsaPrivateKey = RsaKeyConverters.pkcs8().convert(new ByteArrayInputStream(pk));
-        JWK jwk = new RSAKey.Builder(this.publicKey).privateKey(rsaPrivateKey).build();
-        return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(jwk)));
+    public JwtEncoder jwtEncoder(JWKSet jwkSet) {
+        return new NimbusJwtEncoder(new ImmutableJWKSet<>(jwkSet));
     }
 
 }
