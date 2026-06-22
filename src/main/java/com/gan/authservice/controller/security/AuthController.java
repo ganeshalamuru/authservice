@@ -1,7 +1,5 @@
 package com.gan.authservice.controller.security;
 
-import static com.gan.authservice.constants.HTTPConstants.USER_ID_HEADER;
-
 import com.gan.authservice.configuration.annotation.JwtValid;
 import com.gan.authservice.service.security.AuthService;
 import com.gan.authservice.service.security.dto.AccessTokenResponse;
@@ -20,7 +18,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -48,8 +45,8 @@ public class AuthController {
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @PostMapping(value = "/logout")
     @JwtValid
-    public ResponseEntity<String> logout(@RequestHeader(USER_ID_HEADER) String userId, JwtAuthenticationToken token) {
-        authService.logout(userId, token);
+    public ResponseEntity<String> logout(JwtAuthenticationToken token) {
+        authService.logout(token);
         return ResponseEntity.status (HttpStatus.OK).body("Successfully logged out");
     }
 

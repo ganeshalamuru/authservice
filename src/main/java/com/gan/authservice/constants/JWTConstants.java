@@ -8,5 +8,6 @@ public final class JWTConstants {
 
     public static final String JWT_ISSUER = "self";
     public static final String JWT_AUTHORITIES_CLAIM_NAME = "role";
+    public static final String JWT_USER_ID_CLAIM = "uid";
 
 }

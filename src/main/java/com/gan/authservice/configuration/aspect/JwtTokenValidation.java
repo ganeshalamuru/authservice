@@ -1,17 +1,16 @@
 package com.gan.authservice.configuration.aspect;
 
-import static com.gan.authservice.constants.HTTPConstants.USER_ID_HEADER;
+import static com.gan.authservice.constants.JWTConstants.JWT_USER_ID_CLAIM;
 
 import com.gan.authservice.repository.RedisRepository;
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
-import org.springframework.http.HttpHeaders;
 import org.springframework.security.authorization.AuthorizationDeniedException;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 @Aspect
 @RequiredArgsConstructor
@@ -22,11 +21,14 @@ public class JwtTokenValidation {
     @Before("execution(* com.gan.authservice.controller..*.*(..)) && " +
         "(@within(com.gan.authservice.configuration.annotation.JwtValid) || @annotation(com.gan.authservice.configuration.annotation.JwtValid))")
     public void validateJwtToken() {
-        HttpServletRequest request = ((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes())).getRequest();
-        String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION).split(" ")[1];
-        String userId = request.getHeader(USER_ID_HEADER);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (!(authentication instanceof JwtAuthenticationToken jwtAuthentication)) {
+            throw new AuthorizationDeniedException("not authorized");
+        }
+        String userId = jwtAuthentication.getToken().getClaimAsString(JWT_USER_ID_CLAIM);
+        String accessToken = jwtAuthentication.getToken().getTokenValue();
         String currentToken = redisRepository.get(userId);
-        if (Objects.isNull(accessToken) || Objects.isNull(currentToken) || !accessToken.equals(currentToken)) {
+        if (Objects.isNull(currentToken) || !accessToken.equals(currentToken)) {
             throw new AuthorizationDeniedException("not authorized");
         }
     }

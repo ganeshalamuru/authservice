@@ -2,6 +2,7 @@ package com.gan.authservice.service.security;
 
 import static com.gan.authservice.constants.JWTConstants.JWT_AUTHORITIES_CLAIM_NAME;
 import static com.gan.authservice.constants.JWTConstants.JWT_ISSUER;
+import static com.gan.authservice.constants.JWTConstants.JWT_USER_ID_CLAIM;
 
 import com.gan.authservice.model.Status;
 import com.gan.authservice.model.security.CustomUserPrinciple;
@@ -76,6 +77,7 @@ public class AuthService {
             .expiresAt(expiresAt)
             .subject(authentication.getName())
             .claim(JWT_AUTHORITIES_CLAIM_NAME, scope)
+            .claim(JWT_USER_ID_CLAIM, user.getId().toString())
             .build();
         JwtEncoderParameters jwtEncoderParameters = JwtEncoderParameters.from(jwsHeader, claims);
         String accessTokenValue = this.encoder.encode(jwtEncoderParameters).getTokenValue();
@@ -85,7 +87,8 @@ public class AuthService {
         return new AccessTokenResponse(accessTokenValue, user.getId().toString());
     }
 
-    public void logout(String userId, JwtAuthenticationToken authToken) {
+    public void logout(JwtAuthenticationToken authToken) {
+        String userId = authToken.getToken().getClaimAsString(JWT_USER_ID_CLAIM);
         UserToken userToken = userTokenRepository.findByUserIdAndAccessTokenAndStatus(UUID.fromString(userId), authToken.getToken().getTokenValue(), Status.ACTIVE);
         if (Objects.isNull(userToken)) {
             throw new IllegalStateException("user token in missing");
