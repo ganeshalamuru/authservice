@@ -160,5 +160,19 @@ If the goal is "authoritative server my other projects trust":
    `JwtEncodingContext` customizer preserves the #1–#4 token contract (`sub`=UUID, `role`, `aud`,
    `iss`). The custom login filter / `AuthService.generateToken` were removed; `app_user_token` is now
    unused (table cleanup deferred to #6).
-6. **DB hardening** (FK indexes, hashed tokens, token cleanup).
-7. **Code hygiene** (split services, global error handler, tests, remove cruft).
+6. ~~**DB hardening** (FK indexes, hashed tokens, token cleanup).~~ ✅ Done — the legacy
+   `app_user_token` table (the source of the "raw tokens in the DB" + "grows forever" concerns) is
+   **dropped** in Flyway `V4`, since SAS now persists tokens in `oauth2_authorization`; that also
+   removes the `UserToken` entity/repository and the stale `@UniqueConstraint(columnNames="username")`
+   on `app_user`. `V4` also adds the missing FK indexes (`ix_app_user_role_id`,
+   `ix_app_user_credential_user_id`). **Deferred:** scheduled pruning of expired
+   `oauth2_authorization` rows (SAS state) — tracked for a later task.
+7. ~~**Code hygiene** (split services, global error handler, tests, remove cruft).~~ ✅ Done —
+   most sub-items were absorbed by the SAS migration (global `@RestControllerAdvice` already exists;
+   `RedisRepository`/`AccessTokenResponse`/token-minting logic gone, so nothing left to split out of
+   `AuthService`). This pass: **removed Redis entirely** (dependency, `RedisConfig`, the
+   `spring.data.redis` config, the compose `redis` service — it was never in the auth path); deleted
+   the committed `old-application.properties` cruft; and added a **real test suite** — Mockito unit
+   tests (`AuthServiceTest`, `UserServiceTest`), a `@WebMvcTest` controller slice (`AuthControllerTest`),
+   and a Testcontainers `@SpringBootTest` that boots the full app against a real Postgres (Flyway
+   V1–V4, JWKS/discovery/signup/resource-server assertions).
