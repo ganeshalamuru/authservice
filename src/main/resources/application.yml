@@ -24,7 +24,7 @@ jwt:
 oauth2-client:
     client-id: ${OAUTH2_CLIENT_ID:authservice-client}
     client-secret: ${OAUTH2_CLIENT_SECRET:dev-client-secret}
-    redirect-uris: ${OAUTH2_REDIRECT_URIS:http://127.0.0.1:8081/login/oauth2/code/authservice,https://oauth.pstmn.io/v1/callback}
+    redirect-uris: ${OAUTH2_REDIRECT_URIS:http://127.0.0.1:8081/login/oauth2/code/authservice,https://oauth.pstmn.io/v1/callback,http://127.0.0.1:8081/swagger-ui/oauth2-redirect.html}
     refresh-token-ttl: ${OAUTH2_REFRESH_TOKEN_TTL:24h}
 super-admin:
     username: ${SUPER_ADMIN_USERNAME:superadmin}
@@ -33,6 +33,23 @@ super-admin:
     last-name: ${SUPER_ADMIN_LAST_NAME:Admin}
 server:
     port: ${PORT:8081}
+swagger:
+    oauth2:
+        # Base URL Swagger UI uses for /oauth2/authorize and /oauth2/token. Keep it on the same host
+        # the UI is opened from (avoids CORS on the token POST) and use 127.0.0.1, not localhost,
+        # which Spring Authorization Server rejects as a redirect host.
+        server-url: ${SWAGGER_OAUTH2_SERVER_URL:http://127.0.0.1:8081}
 springdoc:
     swagger-ui:
         tryItOutEnabled: true
+        oauth:
+            client-id: ${OAUTH2_CLIENT_ID:authservice-client}
+            # Dev convenience: the seeded client is confidential (client_secret_basic), so Swagger must
+            # authenticate the client at the token endpoint. This is the local dev default secret; do
+            # not expose Swagger UI publicly with a real secret configured here.
+            client-secret: ${OAUTH2_CLIENT_SECRET:dev-client-secret}
+            use-pkce-with-authorization-code-grant: true
+            # Send the client secret as HTTP Basic at /oauth2/token (client_secret_basic). Without this,
+            # Swagger UI defaults to client_secret_post (secret in the body), which the registered client
+            # rejects with invalid_client since it only allows CLIENT_SECRET_BASIC.
+            use-basic-authentication-with-access-code-grant: true

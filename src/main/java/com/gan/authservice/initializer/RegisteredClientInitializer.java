@@ -33,10 +33,16 @@ public class RegisteredClientInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (Objects.nonNull(registeredClientRepository.findByClientId(clientProperties.getClientId()))) {
+        RegisteredClient existing = registeredClientRepository.findByClientId(clientProperties.getClientId());
+        // Idempotent once the desired redirect URIs are present; otherwise reconcile the existing row
+        // (preserving its id so the JDBC repository updates rather than inserts) so newly added URIs
+        // such as the Swagger UI redirect take effect on the already-seeded client.
+        if (Objects.nonNull(existing)
+            && existing.getRedirectUris().containsAll(clientProperties.getRedirectUris())) {
             return;
         }
-        RegisteredClient.Builder client = RegisteredClient.withId(UUID.randomUUID().toString())
+        String id = Objects.nonNull(existing) ? existing.getId() : UUID.randomUUID().toString();
+        RegisteredClient.Builder client = RegisteredClient.withId(id)
             .clientId(clientProperties.getClientId())
             .clientSecret(passwordEncoder.encode(clientProperties.getClientSecret()))
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
