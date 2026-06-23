@@ -2,7 +2,6 @@ package com.gan.authservice.service.security.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
-import lombok.Getter;
 
 @Data
 public class UserSignupRequest {

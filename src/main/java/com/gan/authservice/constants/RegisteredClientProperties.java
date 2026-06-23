@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.util.List;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Configuration for the OAuth2 client that Spring Authorization Server seeds on startup
@@ -14,6 +15,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * hard-coded.
  */
 @Data
+@Validated
 @ConfigurationProperties(prefix = "oauth2-client")
 public class RegisteredClientProperties {
     @NotBlank

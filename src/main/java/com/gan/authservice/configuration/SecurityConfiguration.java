@@ -55,7 +55,7 @@ public class SecurityConfiguration {
     @Value("${jwt.public.key}")
     private RSAPublicKey publicKey;
 
-    @Value("#{secretProvider.jwtPrivateKey}")
+    @Value("${jwt.private.key}")
     private String b64PrivateKey;
 
     /**

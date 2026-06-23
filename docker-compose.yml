@@ -9,8 +9,6 @@ services:
         environment:
             SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/authservice
             SPRING_DATASOURCE_USERNAME: admin
-            SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
-            JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private_key
         secrets:
             - db_password
             - jwt_private_key

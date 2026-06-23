@@ -176,3 +176,80 @@ If the goal is "authoritative server my other projects trust":
    tests (`AuthServiceTest`, `UserServiceTest`), a `@WebMvcTest` controller slice (`AuthControllerTest`),
    and a Testcontainers `@SpringBootTest` that boots the full app against a real Postgres (Flyway
    V1–V4, JWKS/discovery/signup/resource-server assertions).
+
+---
+
+## Phase 2 — code design, architecture, and Spring Boot 4 / Java 25 modernization
+
+Phase 1 (items 1–7 above) is complete. This phase captures the next round, found in a full re-read of
+the codebase. Items are grouped and tagged with rough priority; `✅ Done — Pass N` markers are filled
+in as work lands.
+
+### A. Correctness / latent bugs (do first)
+
+1. **`@ConfigurationProperties` validation was never enforced.** `JwtProperties`, `DatabaseProperties`,
+   and `RegisteredClientProperties` carry `@NotBlank`/`@NotNull` but lacked `@Validated`, so the
+   constraints never ran — a blank `JWT_AUDIENCE=` or empty client secret would not fail fast at
+   startup. ✅ Done — Pass 1: added `@Validated` to all three.
+2. **`ADMIN` was unreachable + `SUPER_ADMIN_PASSWORD` documented but unused.** `RoleName.ADMIN` is
+   referenced by the security rules (`SecurityConfiguration`, `UserController`), but no ADMIN role was
+   seeded, nothing read `SUPER_ADMIN_PASSWORD`, and no admin user was ever created — the ADMIN branch
+   was dead. ✅ Done — Pass 1: `RoleInitializer` now seeds every `RoleName`; a new
+   `SuperAdminInitializer` (idempotent, `@Order(2)`) seeds an ADMIN super-user from the `super-admin.*`
+   properties (`SUPER_ADMIN_PASSWORD`, optional `SUPER_ADMIN_USERNAME`/`_FIRST_NAME`/`_LAST_NAME`),
+   skipping with a warning when the password is unset.
+3. **Hand-built `DataSource` bypassed Boot's Hikari binding.** `FlyWayConfiguration` constructed the
+   `DataSource` via `DataSourceBuilder`, which made Boot's autoconfiguration back off — so
+   `spring.datasource.hikari.*` (e.g. `tcpKeepAlive`) was silently ignored. ✅ Done — Pass 2: deleted
+   `FlyWayConfiguration`, `SecretProvider`, and `DatabaseProperties`; Boot now autoconfigures the
+   datasource (Hikari props bind) and Flyway (`spring.flyway.baseline-on-migrate: true`). Secrets load
+   via config tree (see #11).
+4. **Soft-delete is modeled but never enforced.** `BaseEntity.deletedAt`/`status` are set ACTIVE on
+   create and never used afterward; `findAll()` returns "deleted" rows. Decide: wire it up
+   (`@SQLRestriction("deleted_at is null")` + a real delete path) or drop the columns. **Pending.**
+
+### B. Code design
+
+5. `UserResponse` serializes the full `Role` JPA entity (drags `BaseEntity` audit fields into the API,
+   lazy-load risk) — expose a `roleName` string. **Pending.**
+6. `UserCredential.user` is `@ManyToOne(cascade = ALL)` but is conceptually one-to-one — model as
+   `@OneToOne`. **Pending.**
+7. Repository finders return `null` (`findByUsername`, `findByName`) — return `Optional<>` and
+   `orElseThrow` the missing-`USER`-role case in `AuthService`. **Pending.**
+8. `AuthService` no longer does auth (only registration, post-SAS) — rename to `RegistrationService`.
+   **Pending.**
+9. Hygiene — ✅ Done — Pass 1: explicit imports in `UserController` (dropped the wildcard),
+   `@Transactional(readOnly = true)` on `getAllUsers`, removed the redundant `lombok.Getter` import in
+   `UserSignupRequest`, and `server.port` is now `${PORT:8081}`. Still pending: `status_enum` Postgres
+   ENUM → `VARCHAR + CHECK` (the old #5.6 nit).
+
+### C. Spring Boot 4 / Spring Framework 7 features to adopt
+
+10. RFC 7807 `ProblemDetail` for error bodies + a handler for `MethodArgumentNotValidException`
+    (validation 400s currently fall through to the default `/error`). **Pending.**
+11. ✅ Done — Pass 2: secrets load via Spring Boot config tree
+    (`spring.config.import=configtree:${SECRETS_DIR:/run/secrets}/`); the `db_password` and
+    `jwt_private_key` files map to `spring.datasource.password` / `jwt.private.key`. `SecretProvider` +
+    the SpEL injection are gone; docker-compose secret mounts unchanged; local runs set `SECRETS_DIR`.
+12. Native API versioning (`ApiVersionConfigurer`) instead of the hard-coded `/api/v1/` path. **Pending.**
+13. Virtual threads — `spring.threads.virtual.enabled=true` (blocking JDBC + bcrypt on Java 25). **Pending.**
+14. JSpecify null-safety to replace the `Objects.isNull/nonNull` chains in the token customizer. **Pending.**
+
+### D. Java 25 / modeling
+
+15. Records for immutable DTOs (`UserResponse`, `UserSignupRequest`) and the constructor-bound
+    `@ConfigurationProperties` classes (`@DefaultValue`). **Pending.**
+16. Spring Data JPA auditing (`@CreatedDate`/`@LastModifiedDate` + `@EnableJpaAuditing`) replacing the
+    hand-rolled `@PrePersist`/`@PreUpdate`; switch audit timestamps to `Instant`/`timestamptz` (UTC). **Pending.**
+
+### E. Architecture / security (forward-looking)
+
+17. Scheduled pruning of expired `oauth2_authorization` rows (the item explicitly deferred from
+    Phase 1 #6 — SAS state otherwise grows forever).
+18. Observability/ops: add `spring-boot-starter-actuator` (health/readiness probes for compose/k8s),
+    `server.forward-headers-strategy` (correct issuer URL behind a proxy), and rate-limiting on `/login`
+    and `/auth/signup`.
+19. Multi-project RBAC: many-to-many user↔roles↔authorities and per-client audience/scopes (resource
+    indicators) instead of the single `@ManyToOne` role + single global `aud`.
+20. Test the token customizer end-to-end (mint a real SAS token; assert `sub`=UUID / `role` / `aud`) —
+    currently the most security-critical custom code is uncovered.
