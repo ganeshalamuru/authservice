@@ -17,10 +17,10 @@ jwt:
     issuer: ${JWT_ISSUER:http://localhost:8081}
     audience: ${JWT_AUDIENCE:authservice}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
-    private:
-        key: ${jwt_private_key}
-    public:
-        key: classpath:publickey.pem
+    # JWK Set (JSON) holding the RS256 signing key(s), private params included. Loaded from the
+    # config-tree secret file SECRETS_DIR/jwt_jwks. The first key signs; keep older keys here during
+    # a rotation overlap window so their tokens keep verifying.
+    jwk-set: ${jwt_jwks}
 oauth2-client:
     client-id: ${OAUTH2_CLIENT_ID:authservice-client}
     client-secret: ${OAUTH2_CLIENT_SECRET:dev-client-secret}

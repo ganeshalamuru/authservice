@@ -5,16 +5,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.KeyUse;
+import com.nimbusds.jose.jwk.RSAKey;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.util.Base64;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -31,9 +30,9 @@ import org.testcontainers.utility.DockerImageName;
 /**
  * End-to-end integration test: boots the full application against a real PostgreSQL container so
  * Flyway (V1–V4) actually runs and the SAS client/role initializers seed Postgres. A throwaway RSA
- * keypair, the container password, and the base64 private key are wired in via
- * {@link DynamicPropertySource} (config tree is skipped when SECRETS_DIR is absent), so the app's
- * datasource + key beans start exactly as in production — without committing any secrets.
+ * signing key (as a JWK Set) and the container password are wired in via {@link DynamicPropertySource}
+ * (config tree is skipped when SECRETS_DIR is absent), so the app's datasource + key beans start
+ * exactly as in production — without committing any secrets.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -50,21 +49,17 @@ class AuthserviceApplicationTests {
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         try {
-            KeyPair keyPair = generateRsaKeyPair();
-            Path publicKeyFile = tempFile("jwt-public", publicKeyPem(keyPair.getPublic()));
-            // The app expects jwt.private.key to hold base64(PEM); SecurityConfiguration base64-decodes
-            // it and RsaKeyConverters.pkcs8() then parses the PEM. Config tree is skipped in tests, so
-            // these @DynamicPropertySource values supply the datasource password and signing key directly.
-            String privateKeyFileContent = Base64.getEncoder()
-                .encodeToString(privateKeyPem(keyPair.getPrivate()).getBytes(StandardCharsets.UTF_8));
+            // jwt.jwk-set expects JWK Set JSON with private params; JwkSetConverter parses it and the
+            // Authorization Server signs/serves with it. Config tree is skipped in tests, so these
+            // @DynamicPropertySource values supply the datasource password and signing key directly.
+            String jwkSetJson = generateSigningJwkSet();
 
             registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
             registry.add("spring.datasource.username", POSTGRES::getUsername);
             registry.add("spring.datasource.password", POSTGRES::getPassword);
-            registry.add("jwt.private.key", () -> privateKeyFileContent);
-            registry.add("jwt.public.key", () -> publicKeyFile.toUri().toString());
-        } catch (NoSuchAlgorithmException | IOException e) {
-            throw new IllegalStateException("Failed to provision test secrets", e);
+            registry.add("jwt.jwk-set", () -> jwkSetJson);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Failed to provision test signing key", e);
         }
     }
 
@@ -102,28 +97,18 @@ class AuthserviceApplicationTests {
         mockMvc.perform(get("/api/v1/users")).andExpect(status().isUnauthorized());
     }
 
-    private static Path tempFile(String prefix, String content) throws IOException {
-        Path file = Files.createTempFile(prefix, ".tmp");
-        file.toFile().deleteOnExit();
-        Files.writeString(file, content);
-        return file;
-    }
-
-    private static KeyPair generateRsaKeyPair() throws NoSuchAlgorithmException {
+    /** A single-key JWK Set (private params included), matching the shape of the jwt_jwks secret. */
+    private static String generateSigningJwkSet() throws NoSuchAlgorithmException {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048);
-        return generator.generateKeyPair();
-    }
-
-    private static String publicKeyPem(PublicKey key) {
-        return "-----BEGIN PUBLIC KEY-----\n"
-            + Base64.getMimeEncoder(64, new byte[] {'\n'}).encodeToString(key.getEncoded())
-            + "\n-----END PUBLIC KEY-----\n";
-    }
-
-    private static String privateKeyPem(PrivateKey key) {
-        return "-----BEGIN PRIVATE KEY-----\n"
-            + Base64.getMimeEncoder(64, new byte[] {'\n'}).encodeToString(key.getEncoded())
-            + "\n-----END PRIVATE KEY-----\n";
+        KeyPair keyPair = generator.generateKeyPair();
+        RSAKey rsaKey = new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
+            .privateKey((RSAPrivateKey) keyPair.getPrivate())
+            .keyID(UUID.randomUUID().toString())
+            .keyUse(KeyUse.SIGNATURE)
+            .algorithm(JWSAlgorithm.RS256)
+            .build();
+        // RSAKey.toJSONString() includes the private params since they are present on the key.
+        return "{\"keys\":[" + rsaKey.toJSONString() + "]}";
     }
 }
