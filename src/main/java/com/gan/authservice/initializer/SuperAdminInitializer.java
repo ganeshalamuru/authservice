@@ -7,7 +7,6 @@ import com.gan.authservice.model.security.UserCredential;
 import com.gan.authservice.model.security.enums.RoleName;
 import com.gan.authservice.repository.RoleRepository;
 import com.gan.authservice.repository.UserCredentialRepository;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,10 +43,9 @@ public class SuperAdminInitializer implements CommandLineRunner {
         if (userCredentialRepository.existsByUsername(properties.getUsername())) {
             return;
         }
-        Role adminRole = roleRepository.findByName(RoleName.ADMIN);
-        if (Objects.isNull(adminRole)) {
-            throw new IllegalStateException("ADMIN role not seeded; RoleInitializer must run first");
-        }
+        Role adminRole = roleRepository.findByName(RoleName.ADMIN)
+            .orElseThrow(() -> new IllegalStateException(
+                "ADMIN role not seeded; RoleInitializer must run first"));
         User user = new User(properties.getFirstName(), properties.getLastName(), adminRole);
         UserCredential credential = new UserCredential(
             user, properties.getUsername(), passwordEncoder.encode(properties.getPassword()));

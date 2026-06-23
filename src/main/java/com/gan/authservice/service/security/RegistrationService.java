@@ -16,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
-public class AuthService {
+public class RegistrationService {
 
     private final UserCredentialRepository userCredentialRepository;
     private final RoleRepository roleRepository;
@@ -27,7 +27,8 @@ public class AuthService {
         if (userCredentialRepository.existsByUsername(userSignupRequest.getUsername())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
         }
-        Role role = roleRepository.findByName(RoleName.USER);
+        Role role = roleRepository.findByName(RoleName.USER)
+            .orElseThrow(() -> new IllegalStateException("USER role not seeded; RoleInitializer must run first"));
         User user = new User(userSignupRequest.getFirstName(), userSignupRequest.getLastName(), role);
         UserCredential userCredential = new UserCredential(user, userSignupRequest.getUsername(), passwordEncoder.encode(userSignupRequest.getPassword()));
         userCredential.setUser(user);

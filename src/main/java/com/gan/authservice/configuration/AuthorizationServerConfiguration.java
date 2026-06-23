@@ -94,7 +94,8 @@ public class AuthorizationServerConfiguration {
             if (Objects.isNull(principal) || Objects.isNull(principal.getName())) {
                 return;
             }
-            UserCredential credential = userCredentialRepository.findByUsername(principal.getName());
+            UserCredential credential = userCredentialRepository.findByUsername(principal.getName())
+                .orElse(null);
             if (Objects.isNull(credential)) {
                 return;
             }

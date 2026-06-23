@@ -211,13 +211,25 @@ in as work lands.
 ### B. Code design
 
 5. `UserResponse` serializes the full `Role` JPA entity (drags `BaseEntity` audit fields into the API,
-   lazy-load risk) — expose a `roleName` string. **Pending.**
+   lazy-load risk) — expose a `roleName` string. ✅ Done — Pass 3: `UserResponse.role` (the `Role`
+   entity) replaced by a `roleName` string (`role.getName().name()`); the response no longer drags
+   `BaseEntity` audit fields or risks a lazy-load on serialize.
 6. `UserCredential.user` is `@ManyToOne(cascade = ALL)` but is conceptually one-to-one — model as
-   `@OneToOne`. **Pending.**
+   `@OneToOne`. ✅ Done — Pass 3: now `@OneToOne(cascade = ALL)` (no schema change — same `user_id`
+   FK column, both mappings default to EAGER fetch).
 7. Repository finders return `null` (`findByUsername`, `findByName`) — return `Optional<>` and
-   `orElseThrow` the missing-`USER`-role case in `AuthService`. **Pending.**
+   `orElseThrow` the missing-`USER`-role case in `AuthService`. ✅ Done — Pass 3:
+   `UserCredentialRepository.findByUsername` and `RoleRepository.findByName` return `Optional<>`;
+   callers updated (`CustomUserDetailsService` → `UsernameNotFoundException`, `RegistrationService`
+   → `IllegalStateException` on missing `USER` role, the token customizer / `RoleInitializer` /
+   `SuperAdminInitializer` use `Optional` directly).
 8. `AuthService` no longer does auth (only registration, post-SAS) — rename to `RegistrationService`.
-   **Pending.**
+   ✅ Done — Pass 3: renamed `AuthService` → `RegistrationService` (and `AuthServiceTest` →
+   `RegistrationServiceTest`); `AuthController` and `AuthControllerTest` updated. Method/endpoint
+   names unchanged. While here, made the `AuthControllerTest` `@WebMvcTest` slice self-sufficient —
+   it previously failed to start its context unless `jwt_jwks` was set in the env (the slice still
+   binds `JwtProperties`); it now supplies a throwaway `jwt.jwk-set` via `@DynamicPropertySource`,
+   mirroring `AuthserviceApplicationTests`.
 9. Hygiene — ✅ Done — Pass 1: explicit imports in `UserController` (dropped the wildcard),
    `@Transactional(readOnly = true)` on `getAllUsers`, removed the redundant `lombok.Getter` import in
    `UserSignupRequest`, and `server.port` is now `${PORT:8081}`. Still pending: `status_enum` Postgres

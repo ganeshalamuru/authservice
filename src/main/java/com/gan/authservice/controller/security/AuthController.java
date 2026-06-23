@@ -1,6 +1,6 @@
 package com.gan.authservice.controller.security;
 
-import com.gan.authservice.service.security.AuthService;
+import com.gan.authservice.service.security.RegistrationService;
 import com.gan.authservice.service.security.dto.UserSignupRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,11 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthService authService;
+    private final RegistrationService registrationService;
 
     @PostMapping("/signup")
     public ResponseEntity<String> createUser(@Valid @RequestBody UserSignupRequest userSignupRequest) {
-        authService.createUser(userSignupRequest);
+        registrationService.createUser(userSignupRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body("Successfully signed up");
     }
 

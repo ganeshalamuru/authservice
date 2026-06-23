@@ -18,10 +18,8 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        UserCredential userCredential = userCredentialRepository.findByUsername(username);
-        if (userCredential == null) {
-            throw new UsernameNotFoundException(username);
-        }
+        UserCredential userCredential = userCredentialRepository.findByUsername(username)
+            .orElseThrow(() -> new UsernameNotFoundException(username));
         // Return Spring Security's standard User so the Authorization Server can serialize the
         // principal into the JDBC store out of the box. The user UUID is resolved from the username
         // at token-mint time in the token customizer.

@@ -5,7 +5,7 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,7 +23,7 @@ import lombok.ToString;
 public class UserCredential extends BaseEntity {
 
     @JoinColumn(name = "user_id", referencedColumnName = "id")
-    @ManyToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = CascadeType.ALL)
     private User user;
     @Column(name = "username", nullable = false)
     private String username;

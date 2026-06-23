@@ -8,13 +8,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.gan.authservice.service.security.AuthService;
+import com.gan.authservice.service.security.RegistrationService;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.KeyUse;
+import com.nimbusds.jose.jwk.RSAKey;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
@@ -34,7 +45,23 @@ class AuthControllerTest {
     @Autowired
     private MockMvc mockMvc;
     @MockitoBean
-    private AuthService authService;
+    private RegistrationService registrationService;
+
+    /**
+     * The slice still binds {@code JwtProperties} (registered via {@code @EnableConfigurationProperties}
+     * on the application class), so {@code jwt.jwk-set} must parse for the context to start even though
+     * this slice never signs a token. Supply a throwaway signing key, as {@code AuthserviceApplicationTests}
+     * does, rather than depending on a {@code jwt_jwks} env var / secret being present.
+     */
+    @DynamicPropertySource
+    static void jwtProperties(DynamicPropertyRegistry registry) {
+        try {
+            String jwkSetJson = generateSigningJwkSet();
+            registry.add("jwt.jwk-set", () -> jwkSetJson);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Failed to provision test signing key", e);
+        }
+    }
 
     @Test
     void signup_returns201OnValidRequest() throws Exception {
@@ -43,7 +70,7 @@ class AuthControllerTest {
                 .content(VALID_BODY))
             .andExpect(status().isCreated())
             .andExpect(content().string("Successfully signed up"));
-        verify(authService).createUser(any());
+        verify(registrationService).createUser(any());
     }
 
     @Test
@@ -57,7 +84,7 @@ class AuthControllerTest {
     @Test
     void signup_returns409WhenServiceReportsDuplicate() throws Exception {
         doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists"))
-            .when(authService).createUser(any());
+            .when(registrationService).createUser(any());
 
         mockMvc.perform(post("/auth/signup")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -65,5 +92,19 @@ class AuthControllerTest {
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.status").value(409))
             .andExpect(jsonPath("$.error").value("Username already exists"));
+    }
+
+    /** A single-key JWK Set (private params included), matching the shape of the jwt_jwks secret. */
+    private static String generateSigningJwkSet() throws NoSuchAlgorithmException {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        KeyPair keyPair = generator.generateKeyPair();
+        RSAKey rsaKey = new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
+            .privateKey((RSAPrivateKey) keyPair.getPrivate())
+            .keyID(UUID.randomUUID().toString())
+            .keyUse(KeyUse.SIGNATURE)
+            .algorithm(JWSAlgorithm.RS256)
+            .build();
+        return "{\"keys\":[" + rsaKey.toJSONString() + "]}";
     }
 }

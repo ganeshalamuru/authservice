@@ -13,6 +13,7 @@ import com.gan.authservice.model.security.enums.RoleName;
 import com.gan.authservice.repository.RoleRepository;
 import com.gan.authservice.repository.UserCredentialRepository;
 import com.gan.authservice.service.security.dto.UserSignupRequest;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -24,7 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
-class AuthServiceTest {
+class RegistrationServiceTest {
 
     @Mock
     private UserCredentialRepository userCredentialRepository;
@@ -33,7 +34,7 @@ class AuthServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
     @InjectMocks
-    private AuthService authService;
+    private RegistrationService registrationService;
 
     private UserSignupRequest signupRequest() {
         UserSignupRequest request = new UserSignupRequest();
@@ -48,7 +49,7 @@ class AuthServiceTest {
     void createUser_rejectsDuplicateUsernameWithConflict() {
         when(userCredentialRepository.existsByUsername("alice")).thenReturn(true);
 
-        assertThatThrownBy(() -> authService.createUser(signupRequest()))
+        assertThatThrownBy(() -> registrationService.createUser(signupRequest()))
             .isInstanceOf(ResponseStatusException.class)
             .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
                 .isEqualTo(HttpStatus.CONFLICT));
@@ -61,10 +62,10 @@ class AuthServiceTest {
     void createUser_persistsCredentialWithEncodedPasswordAndUserRole() {
         Role userRole = new Role(RoleName.USER);
         when(userCredentialRepository.existsByUsername("alice")).thenReturn(false);
-        when(roleRepository.findByName(RoleName.USER)).thenReturn(userRole);
+        when(roleRepository.findByName(RoleName.USER)).thenReturn(Optional.of(userRole));
         when(passwordEncoder.encode("s3cret")).thenReturn("ENCODED");
 
-        authService.createUser(signupRequest());
+        registrationService.createUser(signupRequest());
 
         ArgumentCaptor<UserCredential> captor = ArgumentCaptor.forClass(UserCredential.class);
         verify(userCredentialRepository).save(captor.capture());

@@ -3,7 +3,6 @@ package com.gan.authservice.initializer;
 import com.gan.authservice.model.security.Role;
 import com.gan.authservice.model.security.enums.RoleName;
 import com.gan.authservice.repository.RoleRepository;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
@@ -19,7 +18,7 @@ public class RoleInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         for (RoleName roleName : RoleName.values()) {
-            if (Objects.isNull(roleRepository.findByName(roleName))) {
+            if (roleRepository.findByName(roleName).isEmpty()) {
                 roleRepository.save(new Role(roleName));
             }
         }

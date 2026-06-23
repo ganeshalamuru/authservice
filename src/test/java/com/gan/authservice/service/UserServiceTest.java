@@ -38,6 +38,6 @@ class UserServiceTest {
         assertThat(response.getId()).isEqualTo(id.toString());
         assertThat(response.getFirstName()).isEqualTo("Alice");
         assertThat(response.getLastName()).isEqualTo("Smith");
-        assertThat(response.getRole().getName()).isEqualTo(RoleName.USER);
+        assertThat(response.getRoleName()).isEqualTo(RoleName.USER.name());
     }
 }
