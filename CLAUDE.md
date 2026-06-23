@@ -26,9 +26,10 @@ local Postgres / secret files):
 - `SPRING_DATASOURCE_URL` (e.g. `jdbc:postgresql://localhost:5432/authservice`)
 - `SPRING_DATASOURCE_USERNAME` (local run uses `postgres`; the docker-compose stack uses `admin`)
 - `SECRETS_DIR` (directory of secret files loaded via `spring.config.import=configtree:`). It must hold
-  two **extensionless** files: `db_password` (the DB password) and `jwt_private_key` (the base64 private
-  key). E.g. `SECRETS_DIR=C:/Users/ganes/Documents/secrets`. Defaults to `/run/secrets/` (where
-  docker-compose mounts the secrets) when unset.
+  two **extensionless** files: `db_password` (the DB password) and `jwt_jwks` (a JWK Set JSON holding
+  the RS256 signing key — private params included; the first key in the set signs). E.g.
+  `SECRETS_DIR=C:/Users/ganes/Documents/secrets`. Defaults to `/run/secrets/` (where docker-compose
+  mounts the secrets) when unset.
 - `SUPER_ADMIN_PASSWORD` (e.g. `superadmin@123`)
 - optional: `OAUTH2_CLIENT_SECRET` — secret for the seeded Authorization Server client
   (`authservice-client`). Defaults to `dev-client-secret` for local runs; set a real value outside

@@ -229,7 +229,7 @@ in as work lands.
     (validation 400s currently fall through to the default `/error`). **Pending.**
 11. ✅ Done — Pass 2: secrets load via Spring Boot config tree
     (`spring.config.import=configtree:${SECRETS_DIR:/run/secrets}/`); the `db_password` and
-    `jwt_private_key` files map to `spring.datasource.password` / `jwt.private.key`. `SecretProvider` +
+    `jwt_jwks` files map to `spring.datasource.password` / `jwt.jwk-set`. `SecretProvider` +
     the SpEL injection are gone; docker-compose secret mounts unchanged; local runs set `SECRETS_DIR`.
 12. Native API versioning (`ApiVersionConfigurer`) instead of the hard-coded `/api/v1/` path. **Pending.**
 13. Virtual threads — `spring.threads.virtual.enabled=true` (blocking JDBC + bcrypt on Java 25). **Pending.**

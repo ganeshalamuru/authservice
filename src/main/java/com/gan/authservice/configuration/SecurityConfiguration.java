@@ -3,20 +3,10 @@ package com.gan.authservice.configuration;
 import static com.gan.authservice.constants.JWTConstants.JWT_AUTHORITIES_CLAIM_NAME;
 
 import com.gan.authservice.constants.JwtProperties;
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.KeyUse;
-import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
-import java.io.ByteArrayInputStream;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
-import java.util.Base64;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -26,11 +16,11 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.converter.RsaKeyConverters;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimNames;
 import org.springframework.security.oauth2.jwt.JwtClaimValidator;
@@ -47,12 +37,6 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity(prePostEnabled = true)
 @Configuration
 public class SecurityConfiguration {
-
-    @Value("${jwt.public.key}")
-    private RSAPublicKey publicKey;
-
-    @Value("${jwt.private.key}")
-    private String b64PrivateKey;
 
     /**
      * Stateless resource-server chain: validates the SAS-issued access tokens (signature + iss + aud)
@@ -87,6 +71,10 @@ public class SecurityConfiguration {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/signup", "/login", "/error").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                // Chrome DevTools auto-probes this while you're on /login; permit it so it 404s
+                // quietly instead of being captured as the saved request and hijacking the
+                // post-login redirect away from /oauth2/authorize.
+                .requestMatchers("/.well-known/appspecific/**").permitAll()
                 .anyRequest().authenticated())
             .formLogin(form -> form.permitAll());
         return http.build();
@@ -112,42 +100,24 @@ public class SecurityConfiguration {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Signing-key source used by Spring Authorization Server to mint and serve JWTs (/oauth2/jwks).
+     * The encoder signs with the first key in the set, so prepend a freshly generated key to rotate;
+     * older keys stay in the set (and on /oauth2/jwks) so their still-valid tokens keep verifying
+     * during the overlap window. (Future: back this set with the DB for automated rotation.)
+     */
     @Bean
-    public RSAKey rsaKey() {
-        RSAPrivateKey rsaPrivateKey = loadPrivateKey();
-        String kid;
-        try {
-            kid = new RSAKey.Builder(this.publicKey).build().computeThumbprint().toString();
-        } catch (JOSEException e) {
-            throw new IllegalStateException("Failed to compute JWK thumbprint", e);
-        }
-        return new RSAKey.Builder(this.publicKey)
-            .privateKey(rsaPrivateKey)
-            .keyID(kid)
-            .keyUse(KeyUse.SIGNATURE)
-            .algorithm(JWSAlgorithm.RS256)
+    public JWKSource<SecurityContext> jwkSource(JwtProperties jwtProperties) {
+        return new ImmutableJWKSet<>(jwtProperties.getJwkSet());
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource, JwtProperties jwtProperties) {
+        // Validate against the whole set, matched by the token's kid, so a token signed by any key
+        // currently in the set (including a pre-rotation key) still verifies.
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSource(jwkSource)
+            .jwsAlgorithm(SignatureAlgorithm.RS256)
             .build();
-    }
-
-    @Bean
-    public JWKSet jwkSet(RSAKey rsaKey) {
-        return new JWKSet(rsaKey);
-    }
-
-    /** Signing-key source used by Spring Authorization Server to mint and serve JWTs (/oauth2/jwks). */
-    @Bean
-    public JWKSource<SecurityContext> jwkSource(JWKSet jwkSet) {
-        return new ImmutableJWKSet<>(jwkSet);
-    }
-
-    private RSAPrivateKey loadPrivateKey() {
-        byte[] pk = Base64.getDecoder().decode(b64PrivateKey);
-        return RsaKeyConverters.pkcs8().convert(new ByteArrayInputStream(pk));
-    }
-
-    @Bean
-    public JwtDecoder jwtDecoder(JwtProperties jwtProperties) {
-        NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(this.publicKey).build();
         OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(jwtProperties.getIssuer());
         OAuth2TokenValidator<Jwt> audienceValidator = new JwtClaimValidator<List<String>>(
             JwtClaimNames.AUD,
