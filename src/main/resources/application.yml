@@ -1,22 +1,24 @@
 spring:
     application:
         name: authservice
+    config:
+        import: optional:configtree:${SECRETS_DIR:/run/secrets}/
     datasource:
         driver-class-name: org.postgresql.Driver
         hikari:
             data-source-properties:
                 tcpKeepAlive: true
-        password:
-            file: ${SPRING_DATASOURCE_PASSWORD_FILE}
+        password: ${db_password}
         url: ${SPRING_DATASOURCE_URL}
         username: ${SPRING_DATASOURCE_USERNAME}
+    flyway:
+        baseline-on-migrate: true
 jwt:
     issuer: ${JWT_ISSUER:http://localhost:8081}
     audience: ${JWT_AUDIENCE:authservice}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
     private:
-        key:
-            file: ${JWT_PRIVATE_KEY_FILE}
+        key: ${jwt_private_key}
     public:
         key: classpath:publickey.pem
 oauth2-client:
@@ -24,8 +26,13 @@ oauth2-client:
     client-secret: ${OAUTH2_CLIENT_SECRET:dev-client-secret}
     redirect-uris: ${OAUTH2_REDIRECT_URIS:http://127.0.0.1:8081/login/oauth2/code/authservice,https://oauth.pstmn.io/v1/callback}
     refresh-token-ttl: ${OAUTH2_REFRESH_TOKEN_TTL:24h}
+super-admin:
+    username: ${SUPER_ADMIN_USERNAME:superadmin}
+    password: ${SUPER_ADMIN_PASSWORD:}
+    first-name: ${SUPER_ADMIN_FIRST_NAME:Super}
+    last-name: ${SUPER_ADMIN_LAST_NAME:Admin}
 server:
-    port: 8081
+    port: ${PORT:8081}
 springdoc:
     swagger-ui:
         tryItOutEnabled: true

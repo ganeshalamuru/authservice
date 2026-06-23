@@ -25,8 +25,10 @@ local Postgres / secret files):
 
 - `SPRING_DATASOURCE_URL` (e.g. `jdbc:postgresql://localhost:5432/authservice`)
 - `SPRING_DATASOURCE_USERNAME` (local run uses `postgres`; the docker-compose stack uses `admin`)
-- `SPRING_DATASOURCE_PASSWORD_FILE` (path to the DB password file, e.g. `~/Documents/db_password.txt`)
-- `JWT_PRIVATE_KEY_FILE` (path to the base64 private key, e.g. `~/Documents/b64private.txt`)
+- `SECRETS_DIR` (directory of secret files loaded via `spring.config.import=configtree:`). It must hold
+  two **extensionless** files: `db_password` (the DB password) and `jwt_private_key` (the base64 private
+  key). E.g. `SECRETS_DIR=C:/Users/ganes/Documents/secrets`. Defaults to `/run/secrets/` (where
+  docker-compose mounts the secrets) when unset.
 - `SUPER_ADMIN_PASSWORD` (e.g. `superadmin@123`)
 - optional: `OAUTH2_CLIENT_SECRET` — secret for the seeded Authorization Server client
   (`authservice-client`). Defaults to `dev-client-secret` for local runs; set a real value outside
@@ -66,8 +68,8 @@ local Postgres / secret files):
 
 ## Conventions
 
-- Config via `@ConfigurationProperties` classes registered in `AuthserviceApplication` (e.g. `DatabaseProperties`, `JwtProperties`).
-- Secrets read from files at runtime (`SecretProvider`) — DB password and JWT private key; never hard-code them.
+- Config via `@ConfigurationProperties` classes registered in `AuthserviceApplication` (e.g. `JwtProperties`, `RegisteredClientProperties`).
+- Secrets loaded from files via Spring Boot **config tree** (`spring.config.import=configtree:` → `SECRETS_DIR`) — DB password and JWT private key; never hard-code them.
 - `application.yml` pulls deployment values from env vars with sensible local defaults.
 - Errors surfaced via `ResponseStatusException` / `GlobalExceptionHandler`.
 

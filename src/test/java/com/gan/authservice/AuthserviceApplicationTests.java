@@ -31,9 +31,9 @@ import org.testcontainers.utility.DockerImageName;
 /**
  * End-to-end integration test: boots the full application against a real PostgreSQL container so
  * Flyway (V1–V4) actually runs and the SAS client/role initializers seed Postgres. A throwaway RSA
- * keypair and the container password are written to temp files at runtime and wired in via
- * {@link DynamicPropertySource}, so the app's {@code SecretProvider} / key beans start exactly as in
- * production — without committing any secrets.
+ * keypair, the container password, and the base64 private key are wired in via
+ * {@link DynamicPropertySource} (config tree is skipped when SECRETS_DIR is absent), so the app's
+ * datasource + key beans start exactly as in production — without committing any secrets.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -50,20 +50,18 @@ class AuthserviceApplicationTests {
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         try {
-            Path passwordFile = tempFile("db-password", POSTGRES.getPassword());
-
             KeyPair keyPair = generateRsaKeyPair();
             Path publicKeyFile = tempFile("jwt-public", publicKeyPem(keyPair.getPublic()));
-            // The app expects the private-key file to hold base64(PEM); SecretProvider base64-decodes
-            // it and RsaKeyConverters.pkcs8() then parses the PEM. Mirror that here.
+            // The app expects jwt.private.key to hold base64(PEM); SecurityConfiguration base64-decodes
+            // it and RsaKeyConverters.pkcs8() then parses the PEM. Config tree is skipped in tests, so
+            // these @DynamicPropertySource values supply the datasource password and signing key directly.
             String privateKeyFileContent = Base64.getEncoder()
                 .encodeToString(privateKeyPem(keyPair.getPrivate()).getBytes(StandardCharsets.UTF_8));
-            Path privateKeyFile = tempFile("jwt-private", privateKeyFileContent);
 
             registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
             registry.add("spring.datasource.username", POSTGRES::getUsername);
-            registry.add("spring.datasource.password.file", passwordFile::toString);
-            registry.add("jwt.private.key.file", privateKeyFile::toString);
+            registry.add("spring.datasource.password", POSTGRES::getPassword);
+            registry.add("jwt.private.key", () -> privateKeyFileContent);
             registry.add("jwt.public.key", () -> publicKeyFile.toUri().toString());
         } catch (NoSuchAlgorithmException | IOException e) {
             throw new IllegalStateException("Failed to provision test secrets", e);
