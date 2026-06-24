@@ -74,15 +74,20 @@ class AuthControllerTest {
     }
 
     @Test
-    void signup_returns400WhenRequiredFieldsBlank() throws Exception {
+    void signup_returns400ProblemDetailWhenRequiredFieldsBlank() throws Exception {
         mockMvc.perform(post("/auth/signup")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"\",\"password\":\"\",\"firstName\":\"Alice\",\"lastName\":\"Smith\"}"))
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isBadRequest())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.detail").value("Request validation failed"))
+            .andExpect(jsonPath("$.errors.username").exists())
+            .andExpect(jsonPath("$.errors.password").exists());
     }
 
     @Test
-    void signup_returns409WhenServiceReportsDuplicate() throws Exception {
+    void signup_returns409ProblemDetailWhenServiceReportsDuplicate() throws Exception {
         doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists"))
             .when(registrationService).createUser(any());
 
@@ -90,8 +95,9 @@ class AuthControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(VALID_BODY))
             .andExpect(status().isConflict())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
             .andExpect(jsonPath("$.status").value(409))
-            .andExpect(jsonPath("$.error").value("Username already exists"));
+            .andExpect(jsonPath("$.detail").value("Username already exists"));
     }
 
     /** A single-key JWK Set (private params included), matching the shape of the jwt_jwks secret. */

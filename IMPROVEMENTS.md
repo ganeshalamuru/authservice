@@ -248,7 +248,16 @@ in as work lands.
 ### C. Spring Boot 4 / Spring Framework 7 features to adopt
 
 10. RFC 7807 `ProblemDetail` for error bodies + a handler for `MethodArgumentNotValidException`
-    (validation 400s currently fall through to the default `/error`). **Pending.**
+    (validation 400s currently fall through to the default `/error`). ✅ Done — Pass 6:
+    `GlobalExceptionHandler` now extends `ResponseEntityExceptionHandler`, so every Spring MVC
+    exception renders as a `ProblemDetail` (`application/problem+json`) instead of the default
+    `/error` page. `ResponseStatusException` (the app's primary error signal) maps via
+    `handleExceptionInternal` (its `getBody()` is already a `ProblemDetail` carrying status +
+    reason-as-`detail`) — routed through the converters, **not** `sendError(...)`, preserving the
+    Phase-1 fix that kept permit-all errors from being masked as 401. `handleMethodArgumentNotValid`
+    is overridden to attach a field → message `errors` map so bean-validation 400s are actionable.
+    `AuthControllerTest` updated to assert the new shape (`$.detail`, `$.errors.*`,
+    `application/problem+json`) for the 400 and 409 paths.
 11. ✅ Done — Pass 2: secrets load via Spring Boot config tree
     (`spring.config.import=configtree:${SECRETS_DIR:/run/secrets}/`); the `db_password` and
     `jwt_jwks` files map to `spring.datasource.password` / `jwt.jwk-set`. `SecretProvider` +
