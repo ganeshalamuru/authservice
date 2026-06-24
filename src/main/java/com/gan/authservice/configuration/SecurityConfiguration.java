@@ -46,7 +46,7 @@ public class SecurityConfiguration {
     @Order(2)
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, JwtDecoder decoder) throws Exception {
         http
-            .securityMatcher("/api/v1/**")
+            .securityMatcher("/api/**")
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth.anyRequest().hasAnyRole("USER", "ADMIN"))
             .oauth2ResourceServer(configurer -> configurer.jwt(jwt -> jwt

@@ -210,7 +210,8 @@ in as work lands.
    from every query (listings *and* the credential/login lookup, so a deleted user can no longer
    authenticate); a `BaseEntity.softDelete()` helper stamps `deletedAt` + flips `status` to INACTIVE.
    Real delete path: `UserService.deleteUser(UUID)` (404 if absent) soft-deletes the `app_user` row
-   and its `app_user_credential` row, exposed as an ADMIN-only `DELETE /api/v1/users/{id}` → 204.
+   and its `app_user_credential` row, exposed as an ADMIN-only `DELETE /api/users/{id}` → 204
+   (path de-versioned in Pass 7, #12).
    Flyway `V5` replaces the full unique username index with a **partial** one
    (`WHERE deleted_at IS NULL`) so a freed username can be reused. Covered by `UserServiceTest`
    (soft-delete + 404) and an integration test (hidden from `getAllUsers`/`findByUsername` + username
@@ -262,7 +263,19 @@ in as work lands.
     (`spring.config.import=configtree:${SECRETS_DIR:/run/secrets}/`); the `db_password` and
     `jwt_jwks` files map to `spring.datasource.password` / `jwt.jwk-set`. `SecretProvider` +
     the SpEL injection are gone; docker-compose secret mounts unchanged; local runs set `SECRETS_DIR`.
-12. Native API versioning (`ApiVersionConfigurer`) instead of the hard-coded `/api/v1/` path. **Pending.**
+12. Native API versioning (`ApiVersionConfigurer`) instead of the hard-coded `/api/v1/` path. ✅ Done —
+    Pass 7: adopted Spring Framework 7 native versioning. A `WebMvcConfiguration` (`WebMvcConfigurer`)
+    configures `configureApiVersioning` to read the version from the **`X-API-Version`** header
+    (`useRequestHeader`), supporting version `"1"`, **optional** (`setVersionRequired(false)`) with
+    `setDefaultVersion("1")` so callers that omit the header keep working; an unsupported version is
+    rejected with 400 (`InvalidApiVersionException`). The version moved out of the URL: `UserController`
+    is now `/api/users` with `@GetMapping(version = "1")` / `@DeleteMapping(path = "/{id}", version = "1")`
+    instead of the hard-coded `/api/v1/users`. The resource-server `securityMatcher` is `/api/**`
+    (was `/api/v1/**`). **Contract change:** consumers move from `GET /api/v1/users` to `GET /api/users`
+    (optionally `X-API-Version: 1`). Verified by the full `@SpringBootTest` boot (a version mapping with
+    no `ApiVersionStrategy` would fail startup) + `protectedApiRequiresBearerToken` hitting `/api/users`.
+    **Deferred:** asserting version *routing* with a real authenticated token — folds into #20 (token
+    customizer end-to-end), the only place a valid token is minted.
 13. Virtual threads — `spring.threads.virtual.enabled=true` (blocking JDBC + bcrypt on Java 25). ✅ Done —
     Pass 5: enabled `spring.threads.virtual.enabled`, so each request (and its blocking JDBC + bcrypt
     work) runs on a virtual thread instead of a pooled platform thread; throughput is no longer capped

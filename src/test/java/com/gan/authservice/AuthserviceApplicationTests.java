@@ -103,7 +103,9 @@ class AuthserviceApplicationTests {
 
     @Test
     void protectedApiRequiresBearerToken() throws Exception {
-        mockMvc.perform(get("/api/v1/users")).andExpect(status().isUnauthorized());
+        // Path no longer carries the version (now the X-API-Version header, default "1"); the
+        // resource-server chain still matches /api/** and rejects the missing bearer token.
+        mockMvc.perform(get("/api/users")).andExpect(status().isUnauthorized());
     }
 
     @Test

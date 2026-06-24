@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "oauth2")
 @SecurityRequirement(name = "bearerAuth")
@@ -24,13 +24,15 @@ public class UserController {
 
     private final UserService userService;
 
-    @GetMapping
+    // version = "1" is resolved from the X-API-Version header (WebMvcConfiguration); it defaults to
+    // "1" when the header is absent, so the path carries no version segment.
+    @GetMapping(version = "1")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         return ResponseEntity.status(HttpStatus.OK).body(userService.getAllUsers());
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping(path = "/{id}", version = "1")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable UUID id) {
         userService.deleteUser(id);

@@ -53,7 +53,10 @@ local Postgres / secret files):
 - Users authenticate at the form-login page (`/login`) via `CustomDaoAuthenticationProvider` +
   `CustomUserDetailsService`; SAS then issues the code → tokens. There is no custom login filter.
 - **Three security filter chains** (`@Order`): (1) SAS endpoints + OIDC, (2) stateless
-  resource-server for `/api/v1/**`, (3) default form-login chain (`/login`, `/auth/signup`, docs).
+  resource-server for `/api/**`, (3) default form-login chain (`/login`, `/auth/signup`, docs).
+- **API versioning** is native (Spring MVC, `WebMvcConfiguration`): the version travels in the
+  `X-API-Version` header (optional, defaults to `1`), so endpoints are `/api/users` (no `/v1/`
+  segment) and controllers declare `@RequestMapping(version = "1")`.
 - **Stateless** access tokens validated by the resource server on signature + `iss` + `aud` only.
   A `JwtEncodingContext` customizer preserves: `sub` = user **UUID**, roles in the `role` claim,
   `aud` = `jwt.audience`, `iss` = `jwt.issuer` (= `AuthorizationServerSettings.issuer`). Access-token
