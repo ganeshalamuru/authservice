@@ -254,7 +254,10 @@ in as work lands.
     `jwt_jwks` files map to `spring.datasource.password` / `jwt.jwk-set`. `SecretProvider` +
     the SpEL injection are gone; docker-compose secret mounts unchanged; local runs set `SECRETS_DIR`.
 12. Native API versioning (`ApiVersionConfigurer`) instead of the hard-coded `/api/v1/` path. **Pending.**
-13. Virtual threads — `spring.threads.virtual.enabled=true` (blocking JDBC + bcrypt on Java 25). **Pending.**
+13. Virtual threads — `spring.threads.virtual.enabled=true` (blocking JDBC + bcrypt on Java 25). ✅ Done —
+    Pass 5: enabled `spring.threads.virtual.enabled`, so each request (and its blocking JDBC + bcrypt
+    work) runs on a virtual thread instead of a pooled platform thread; throughput is no longer capped
+    by the Tomcat worker pool.
 14. JSpecify null-safety to replace the `Objects.isNull/nonNull` chains in the token customizer. **Pending.**
 
 ### D. Java 25 / modeling
@@ -270,7 +273,14 @@ in as work lands.
     Phase 1 #6 — SAS state otherwise grows forever).
 18. Observability/ops: add `spring-boot-starter-actuator` (health/readiness probes for compose/k8s),
     `server.forward-headers-strategy` (correct issuer URL behind a proxy), and rate-limiting on `/login`
-    and `/auth/signup`.
+    and `/auth/signup`. ✅ Partially done — Pass 5: added `spring-boot-starter-actuator`, exposing **only**
+    `health` over HTTP with liveness/readiness probes enabled (`management.endpoint.health.probes.enabled`);
+    `/actuator/health/**` is permitted unauthenticated in the default chain (details stay hidden —
+    `show-details` defaults to `never`) so compose/k8s probes work while no other actuator endpoint is on
+    the network. Set `server.forward-headers-strategy=framework` so `X-Forwarded-*` (scheme/host/port) is
+    honored behind a proxy/ingress. Covered by an integration test asserting the three health endpoints are
+    public and `UP`. **Still pending:** rate-limiting on `/login` and `/auth/signup` (needs a filter/bucket
+    library — deferred to its own pass).
 19. Multi-project RBAC: many-to-many user↔roles↔authorities and per-client audience/scopes (resource
     indicators) instead of the single `@ManyToOne` role + single global `aud`.
 20. Test the token customizer end-to-end (mint a real SAS token; assert `sub`=UUID / `role` / `aud`) —

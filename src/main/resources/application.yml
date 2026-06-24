@@ -1,6 +1,13 @@
 spring:
     application:
         name: authservice
+    # Java 25 virtual threads: each request (and the blocking JDBC + bcrypt work it does) runs on a
+    # virtual thread instead of a pooled platform thread, so throughput is no longer capped by the
+    # Tomcat thread pool. Safe here because the workload is plain blocking I/O (no thread pinning on
+    # synchronized hotspots in the request path).
+    threads:
+        virtual:
+            enabled: true
     config:
         import: optional:configtree:${SECRETS_DIR:/run/secrets}/
     datasource:
@@ -33,6 +40,21 @@ super-admin:
     last-name: ${SUPER_ADMIN_LAST_NAME:Admin}
 server:
     port: ${PORT:8081}
+    # Honor X-Forwarded-* headers (scheme/host/port) via Spring's ForwardedHeaderFilter so generated
+    # absolute URLs are correct when running behind a reverse proxy / ingress (compose, k8s).
+    forward-headers-strategy: framework
+management:
+    endpoints:
+        web:
+            exposure:
+                # Expose only health over HTTP; other actuator endpoints stay off the network.
+                include: health
+    endpoint:
+        health:
+            # Serve /actuator/health/liveness and /actuator/health/readiness everywhere (not just on
+            # Kubernetes), so compose/k8s probes have a stable endpoint to hit.
+            probes:
+                enabled: true
 swagger:
     oauth2:
         # Base URL Swagger UI uses for /oauth2/authorize and /oauth2/token. Keep it on the same host

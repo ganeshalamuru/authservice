@@ -77,3 +77,4 @@ local Postgres / secret files):
 ## Local infra
 
 Postgres is exposed on host port **5432**
+Docker is available but check if it's up or not

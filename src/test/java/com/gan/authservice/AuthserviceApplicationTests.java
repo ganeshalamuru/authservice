@@ -32,7 +32,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /**
  * End-to-end integration test: boots the full application against a real PostgreSQL container so
- * Flyway (V1–V4) actually runs and the SAS client/role initializers seed Postgres. A throwaway RSA
+ * Flyway (V1–V5) actually runs and the SAS client/role initializers seed Postgres. A throwaway RSA
  * signing key (as a JWK Set) and the container password are wired in via {@link DynamicPropertySource}
  * (config tree is skipped when SECRETS_DIR is absent), so the app's datasource + key beans start
  * exactly as in production — without committing any secrets.
@@ -104,6 +104,20 @@ class AuthserviceApplicationTests {
     @Test
     void protectedApiRequiresBearerToken() throws Exception {
         mockMvc.perform(get("/api/v1/users")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void healthProbesArePublicAndUp() throws Exception {
+        // Permitted unauthenticated for compose/k8s; details stay hidden (show-details: never).
+        mockMvc.perform(get("/actuator/health"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("UP"));
+        mockMvc.perform(get("/actuator/health/liveness"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("UP"));
+        mockMvc.perform(get("/actuator/health/readiness"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("UP"));
     }
 
     @Test
