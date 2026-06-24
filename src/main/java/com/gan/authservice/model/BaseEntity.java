@@ -58,4 +58,14 @@ public abstract class BaseEntity {
         this.updatedAt = LocalDateTime.now();
     }
 
+    /**
+     * Marks the row soft-deleted: stamps {@code deletedAt} and flips {@code status} to INACTIVE. The
+     * {@code deleted_at is null} {@code @SQLRestriction} on the soft-deletable entities then hides it
+     * from every query (listings and the login/credential lookup), so it survives only as audit history.
+     */
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+        this.status = Status.INACTIVE;
+    }
+
 }

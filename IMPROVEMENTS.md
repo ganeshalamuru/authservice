@@ -205,8 +205,18 @@ in as work lands.
    datasource (Hikari props bind) and Flyway (`spring.flyway.baseline-on-migrate: true`). Secrets load
    via config tree (see #11).
 4. **Soft-delete is modeled but never enforced.** `BaseEntity.deletedAt`/`status` are set ACTIVE on
-   create and never used afterward; `findAll()` returns "deleted" rows. Decide: wire it up
-   (`@SQLRestriction("deleted_at is null")` + a real delete path) or drop the columns. **Pending.**
+   create and never used afterward; `findAll()` returns "deleted" rows. ✅ Done — Pass 4: **wired it
+   up.** `@SQLRestriction("deleted_at is null")` on `User` + `UserCredential` hides soft-deleted rows
+   from every query (listings *and* the credential/login lookup, so a deleted user can no longer
+   authenticate); a `BaseEntity.softDelete()` helper stamps `deletedAt` + flips `status` to INACTIVE.
+   Real delete path: `UserService.deleteUser(UUID)` (404 if absent) soft-deletes the `app_user` row
+   and its `app_user_credential` row, exposed as an ADMIN-only `DELETE /api/v1/users/{id}` → 204.
+   Flyway `V5` replaces the full unique username index with a **partial** one
+   (`WHERE deleted_at IS NULL`) so a freed username can be reused. Covered by `UserServiceTest`
+   (soft-delete + 404) and an integration test (hidden from `getAllUsers`/`findByUsername` + username
+   freed). **Accepted tradeoff:** already-issued stateless access tokens stay valid until expiry (≤15
+   min); a deleted user's refresh also yields a token that fails the audience check, since the token
+   customizer's credential lookup now misses.
 
 ### B. Code design
 

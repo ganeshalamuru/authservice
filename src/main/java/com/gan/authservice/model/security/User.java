@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.SQLRestriction;
 
 @Getter
 @Setter
@@ -19,6 +20,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @Entity
 @Table(name = "app_user")
+@SQLRestriction("deleted_at is null")
 public class User extends BaseEntity {
 
     @Column(name = "first_name", nullable = false)

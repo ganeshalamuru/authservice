@@ -12,6 +12,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.SQLRestriction;
 
 @Getter
 @Setter
@@ -20,6 +21,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @Entity
 @Table(name = "app_user_credential")
+@SQLRestriction("deleted_at is null")
 public class UserCredential extends BaseEntity {
 
     @JoinColumn(name = "user_id", referencedColumnName = "id")

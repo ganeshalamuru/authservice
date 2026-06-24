@@ -1,10 +1,13 @@
 package com.gan.authservice;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gan.authservice.repository.UserCredentialRepository;
+import com.gan.authservice.service.UserService;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -45,6 +48,12 @@ class AuthserviceApplicationTests {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private UserCredentialRepository userCredentialRepository;
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
@@ -95,6 +104,32 @@ class AuthserviceApplicationTests {
     @Test
     void protectedApiRequiresBearerToken() throws Exception {
         mockMvc.perform(get("/api/v1/users")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void softDeleteHidesUserFromQueriesAndFreesUsername() throws Exception {
+        String body = "{\"username\":\"softdeluser\",\"password\":\"s3cret\","
+            + "\"firstName\":\"Soft\",\"lastName\":\"Delete\"}";
+        mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isCreated());
+
+        UUID userId = userCredentialRepository.findByUsername("softdeluser").orElseThrow()
+            .getUser().getId();
+        // Visible before deletion.
+        assertThat(userService.getAllUsers())
+            .anyMatch(user -> user.getId().equals(userId.toString()));
+
+        userService.deleteUser(userId);
+
+        // @SQLRestriction hides both rows: gone from listings and the credential lookup misses
+        // (so the user can no longer authenticate).
+        assertThat(userService.getAllUsers())
+            .noneMatch(user -> user.getId().equals(userId.toString()));
+        assertThat(userCredentialRepository.findByUsername("softdeluser")).isEmpty();
+
+        // The partial unique index (V5) frees the name, so it can be registered again.
+        mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isCreated());
     }
 
     /** A single-key JWK Set (private params included), matching the shape of the jwt_jwks secret. */
