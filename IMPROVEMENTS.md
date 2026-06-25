@@ -324,3 +324,27 @@ in as work lands.
     indicators) instead of the single `@ManyToOne` role + single global `aud`.
 20. Test the token customizer end-to-end (mint a real SAS token; assert `sub`=UUID / `role` / `aud`) —
     currently the most security-critical custom code is uncovered.
+21. **Onboarding more OAuth2 clients without editing `application.yml`.** Today `oauth2-client.*`
+    (`RegisteredClientProperties`) models exactly **one** client, used by `RegisteredClientInitializer`
+    only to seed/reconcile `authservice-client` on startup. But clients are already persisted in Postgres
+    via `JdbcRegisteredClientRepository` (Flyway `V3` → `oauth2_registered_client`), so anything that calls
+    `registeredClientRepository.save(...)` adds a client at runtime (no restart). Options:
+    - **A — SAS built-in OIDC Dynamic Client Registration (RFC 7591 / OIDC DCR).** Shipped by Spring
+      Authorization Server but **disabled by default**: enable it via
+      `oidc(o -> o.clientRegistrationEndpoint(Customizer.withDefaults()))` → `POST /connect/register`
+      (also surfaces `registration_endpoint` in discovery). SAS generates `client_id`/`client_secret`,
+      saves through the `RegisteredClientRepository`, and returns a `registration_access_token` +
+      `registration_client_uri`. **Bootstrap requirement:** registration needs an initial access token with
+      scope `client.create` (`client.read` to read back), minted via the **`client_credentials`** grant from
+      a seeded "registrar" client — the current `authservice-client` can't do this (only
+      `authorization_code` + `refresh_token`, scopes `openid/profile/roles`). Best for self-service /
+      third-party onboarding; larger attack surface, secret shown once.
+    - **B — Admin-guarded endpoint (recommended for a controlled set of internal projects).** A small
+      `POST /api/clients` controller `@PreAuthorize("hasRole('ADMIN')")` that builds a `RegisteredClient`
+      and calls `registeredClientRepository.save(...)`. Reuses the existing ADMIN role/method security,
+      no `client_credentials` bootstrap, full control over allowed grants/scopes/redirects.
+    - **C — Multiple seeded clients via config.** Refactor `RegisteredClientProperties` → `List<…>` and
+      loop in the initializer. Fine for a small, static set, but still "edit + redeploy".
+    **Caveat (ties to #19):** the token customizer stamps `aud = jwt.audience` (single global value) on
+    *every* access token regardless of client, so however clients are added they currently all share one
+    audience. Pair whichever option with #19 (per-client audience/scopes) for real multi-project isolation.
