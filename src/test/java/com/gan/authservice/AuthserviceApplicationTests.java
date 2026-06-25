@@ -133,14 +133,14 @@ class AuthserviceApplicationTests {
             .getUser().getId();
         // Visible before deletion.
         assertThat(userService.getAllUsers())
-            .anyMatch(user -> user.getId().equals(userId.toString()));
+            .anyMatch(user -> user.id().equals(userId.toString()));
 
         userService.deleteUser(userId);
 
         // @SQLRestriction hides both rows: gone from listings and the credential lookup misses
         // (so the user can no longer authenticate).
         assertThat(userService.getAllUsers())
-            .noneMatch(user -> user.getId().equals(userId.toString()));
+            .noneMatch(user -> user.id().equals(userId.toString()));
         assertThat(userCredentialRepository.findByUsername("softdeluser")).isEmpty();
 
         // The partial unique index (V5) frees the name, so it can be registered again.

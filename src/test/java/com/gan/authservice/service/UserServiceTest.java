@@ -47,10 +47,10 @@ class UserServiceTest {
 
         assertThat(responses).hasSize(1);
         UserResponse response = responses.getFirst();
-        assertThat(response.getId()).isEqualTo(id.toString());
-        assertThat(response.getFirstName()).isEqualTo("Alice");
-        assertThat(response.getLastName()).isEqualTo("Smith");
-        assertThat(response.getRoleName()).isEqualTo(RoleName.USER.name());
+        assertThat(response.id()).isEqualTo(id.toString());
+        assertThat(response.firstName()).isEqualTo("Alice");
+        assertThat(response.lastName()).isEqualTo("Smith");
+        assertThat(response.roleName()).isEqualTo(RoleName.USER.name());
     }
 
     @Test

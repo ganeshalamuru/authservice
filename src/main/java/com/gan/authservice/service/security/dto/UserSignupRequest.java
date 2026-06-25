@@ -1,18 +1,11 @@
 package com.gan.authservice.service.security.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
 
-@Data
-public class UserSignupRequest {
-
-    @NotBlank
-    private String username;
-    @NotBlank
-    private String password;
-    @NotBlank
-    private String firstName;
-    @NotBlank
-    private String lastName;
+public record UserSignupRequest(
+    @NotBlank String username,
+    @NotBlank String password,
+    @NotBlank String firstName,
+    @NotBlank String lastName) {
 
 }

@@ -280,12 +280,29 @@ in as work lands.
     Pass 5: enabled `spring.threads.virtual.enabled`, so each request (and its blocking JDBC + bcrypt
     work) runs on a virtual thread instead of a pooled platform thread; throughput is no longer capped
     by the Tomcat worker pool.
-14. JSpecify null-safety to replace the `Objects.isNull/nonNull` chains in the token customizer. **Pending.**
+14. JSpecify null-safety to replace the `Objects.isNull/nonNull` chains in the token customizer. ✅ Done —
+    Pass 8: declared `org.jspecify:jspecify` explicitly (already transitive via `spring-core`, version
+    managed by the Boot BOM) and marked `AuthorizationServerConfiguration` `@NullMarked`. The token
+    customizer no longer imports `java.util.Objects`: the `Objects.isNull(principal) || ...` chain is now
+    a `principal == null || principal.getName() == null` guard (kept defensively — SAS's
+    `getPrincipal()`/`getName()` aren't JSpecify-annotated, so their nullness is unspecified), and the
+    `findByUsername(...).orElse(null)` + `Objects.isNull(credential)` dance collapses into
+    `Optional.ifPresent(credential -> ...)`.
 
 ### D. Java 25 / modeling
 
 15. Records for immutable DTOs (`UserResponse`, `UserSignupRequest`) and the constructor-bound
-    `@ConfigurationProperties` classes (`@DefaultValue`). **Pending.**
+    `@ConfigurationProperties` classes (`@DefaultValue`). ✅ Done — Pass 8: `UserResponse` and
+    `UserSignupRequest` are now records (the JSON response shape and the `@NotBlank` request validation are
+    unchanged — Jackson binds records via the canonical constructor and Hibernate Validator validates the
+    components; the `createResponse` factory is preserved). `JwtProperties`, `RegisteredClientProperties`,
+    and `SuperAdminProperties` are constructor-bound records: `@Validated` + the
+    `@NotBlank`/`@NotNull`/`@NotEmpty` constraints carry over, `@DefaultValue` supplies the optional
+    defaults (`accessTokenTtl=15m`, `refreshTokenTtl=24h`, super-admin `username`/`firstName`/`lastName`),
+    and the `JwkSetConverter` (`@ConfigurationPropertiesBinding`) still binds `jwt.jwk-set` → `JWKSet`. All
+    `getX()` call sites moved to the `x()` record accessors. Verified by the full `@SpringBootTest` boot
+    (a binding/validation failure on any of the three records would fail startup) plus the slice/unit
+    tests.
 16. Spring Data JPA auditing (`@CreatedDate`/`@LastModifiedDate` + `@EnableJpaAuditing`) replacing the
     hand-rolled `@PrePersist`/`@PreUpdate`; switch audit timestamps to `Instant`/`timestamptz` (UTC). **Pending.**
 

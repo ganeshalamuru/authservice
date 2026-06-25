@@ -111,7 +111,7 @@ public class SecurityConfiguration {
      */
     @Bean
     public JWKSource<SecurityContext> jwkSource(JwtProperties jwtProperties) {
-        return new ImmutableJWKSet<>(jwtProperties.getJwkSet());
+        return new ImmutableJWKSet<>(jwtProperties.jwkSet());
     }
 
     @Bean
@@ -121,10 +121,10 @@ public class SecurityConfiguration {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSource(jwkSource)
             .jwsAlgorithm(SignatureAlgorithm.RS256)
             .build();
-        OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(jwtProperties.getIssuer());
+        OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(jwtProperties.issuer());
         OAuth2TokenValidator<Jwt> audienceValidator = new JwtClaimValidator<List<String>>(
             JwtClaimNames.AUD,
-            audience -> audience != null && audience.contains(jwtProperties.getAudience()));
+            audience -> audience != null && audience.contains(jwtProperties.audience()));
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer, audienceValidator));
         return decoder;
     }

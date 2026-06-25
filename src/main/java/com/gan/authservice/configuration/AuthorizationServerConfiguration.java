@@ -3,11 +3,10 @@ package com.gan.authservice.configuration;
 import static com.gan.authservice.constants.JWTConstants.JWT_AUTHORITIES_CLAIM_NAME;
 
 import com.gan.authservice.constants.JwtProperties;
-import com.gan.authservice.model.security.UserCredential;
 import com.gan.authservice.repository.UserCredentialRepository;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -36,6 +35,7 @@ import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
  * /oauth2/revoke and OIDC discovery endpoints, persisted to Postgres via the JDBC services.
  */
 @Configuration
+@NullMarked
 public class AuthorizationServerConfiguration {
 
     /**
@@ -62,7 +62,7 @@ public class AuthorizationServerConfiguration {
 
     @Bean
     public AuthorizationServerSettings authorizationServerSettings(JwtProperties jwtProperties) {
-        return AuthorizationServerSettings.builder().issuer(jwtProperties.getIssuer()).build();
+        return AuthorizationServerSettings.builder().issuer(jwtProperties.issuer()).build();
     }
 
     @Bean
@@ -91,24 +91,23 @@ public class AuthorizationServerConfiguration {
         UserCredentialRepository userCredentialRepository) {
         return context -> {
             Authentication principal = context.getPrincipal();
-            if (Objects.isNull(principal) || Objects.isNull(principal.getName())) {
+            // @NullMarked makes the parameters/returns here non-null by default; principal and its
+            // name come from SAS code that isn't JSpecify-annotated, so guard them defensively.
+            if (principal == null || principal.getName() == null) {
                 return;
             }
-            UserCredential credential = userCredentialRepository.findByUsername(principal.getName())
-                .orElse(null);
-            if (Objects.isNull(credential)) {
-                return;
-            }
-            context.getClaims().subject(credential.getUser().getId().toString());
-            if (OAuth2TokenType.ACCESS_TOKEN.equals(context.getTokenType())) {
-                // Derive the role from the user record (source of truth) rather than the login
-                // Authentication, whose authorities also carry SS7 factor authorities (FACTOR_PASSWORD).
-                String role = credential.getUser().getRole().getName().name();
-                // Use a mutable ArrayList (not List.of) so the Authorization Server's JSON store can
-                // deserialize the claim — its Jackson allowlist rejects java.util.ImmutableCollections.
-                context.getClaims().audience(new ArrayList<>(List.of(jwtProperties.getAudience())));
-                context.getClaims().claim(JWT_AUTHORITIES_CLAIM_NAME, role);
-            }
+            userCredentialRepository.findByUsername(principal.getName()).ifPresent(credential -> {
+                context.getClaims().subject(credential.getUser().getId().toString());
+                if (OAuth2TokenType.ACCESS_TOKEN.equals(context.getTokenType())) {
+                    // Derive the role from the user record (source of truth) rather than the login
+                    // Authentication, whose authorities also carry SS7 factor authorities (FACTOR_PASSWORD).
+                    String role = credential.getUser().getRole().getName().name();
+                    // Use a mutable ArrayList (not List.of) so the Authorization Server's JSON store can
+                    // deserialize the claim — its Jackson allowlist rejects java.util.ImmutableCollections.
+                    context.getClaims().audience(new ArrayList<>(List.of(jwtProperties.audience())));
+                    context.getClaims().claim(JWT_AUTHORITIES_CLAIM_NAME, role);
+                }
+            });
         };
     }
 

@@ -37,12 +37,7 @@ class RegistrationServiceTest {
     private RegistrationService registrationService;
 
     private UserSignupRequest signupRequest() {
-        UserSignupRequest request = new UserSignupRequest();
-        request.setUsername("alice");
-        request.setPassword("s3cret");
-        request.setFirstName("Alice");
-        request.setLastName("Smith");
-        return request;
+        return new UserSignupRequest("alice", "s3cret", "Alice", "Smith");
     }
 
     @Test

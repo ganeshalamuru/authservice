@@ -36,20 +36,20 @@ public class SuperAdminInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (!StringUtils.hasText(properties.getPassword())) {
+        if (!StringUtils.hasText(properties.password())) {
             log.warn("SUPER_ADMIN_PASSWORD is not set; skipping super-admin seeding");
             return;
         }
-        if (userCredentialRepository.existsByUsername(properties.getUsername())) {
+        if (userCredentialRepository.existsByUsername(properties.username())) {
             return;
         }
         Role adminRole = roleRepository.findByName(RoleName.ADMIN)
             .orElseThrow(() -> new IllegalStateException(
                 "ADMIN role not seeded; RoleInitializer must run first"));
-        User user = new User(properties.getFirstName(), properties.getLastName(), adminRole);
+        User user = new User(properties.firstName(), properties.lastName(), adminRole);
         UserCredential credential = new UserCredential(
-            user, properties.getUsername(), passwordEncoder.encode(properties.getPassword()));
+            user, properties.username(), passwordEncoder.encode(properties.password()));
         userCredentialRepository.save(credential);
-        log.info("Seeded super-admin user '{}'", properties.getUsername());
+        log.info("Seeded super-admin user '{}'", properties.username());
     }
 }

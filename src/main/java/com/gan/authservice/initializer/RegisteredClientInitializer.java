@@ -33,18 +33,18 @@ public class RegisteredClientInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        RegisteredClient existing = registeredClientRepository.findByClientId(clientProperties.getClientId());
+        RegisteredClient existing = registeredClientRepository.findByClientId(clientProperties.clientId());
         // Idempotent once the desired redirect URIs are present; otherwise reconcile the existing row
         // (preserving its id so the JDBC repository updates rather than inserts) so newly added URIs
         // such as the Swagger UI redirect take effect on the already-seeded client.
         if (Objects.nonNull(existing)
-            && existing.getRedirectUris().containsAll(clientProperties.getRedirectUris())) {
+            && existing.getRedirectUris().containsAll(clientProperties.redirectUris())) {
             return;
         }
         String id = Objects.nonNull(existing) ? existing.getId() : UUID.randomUUID().toString();
         RegisteredClient.Builder client = RegisteredClient.withId(id)
-            .clientId(clientProperties.getClientId())
-            .clientSecret(passwordEncoder.encode(clientProperties.getClientSecret()))
+            .clientId(clientProperties.clientId())
+            .clientSecret(passwordEncoder.encode(clientProperties.clientSecret()))
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
@@ -57,11 +57,11 @@ public class RegisteredClientInitializer implements CommandLineRunner {
                 .build())
             .tokenSettings(TokenSettings.builder()
                 .accessTokenFormat(OAuth2TokenFormat.SELF_CONTAINED)
-                .accessTokenTimeToLive(jwtProperties.getAccessTokenTtl())
-                .refreshTokenTimeToLive(clientProperties.getRefreshTokenTtl())
+                .accessTokenTimeToLive(jwtProperties.accessTokenTtl())
+                .refreshTokenTimeToLive(clientProperties.refreshTokenTtl())
                 .reuseRefreshTokens(false)
                 .build());
-        clientProperties.getRedirectUris().forEach(client::redirectUri);
+        clientProperties.redirectUris().forEach(client::redirectUri);
         registeredClientRepository.save(client.build());
     }
 }

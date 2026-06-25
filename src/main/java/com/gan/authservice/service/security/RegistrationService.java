@@ -24,13 +24,13 @@ public class RegistrationService {
 
     @Transactional
     public void createUser(UserSignupRequest userSignupRequest) {
-        if (userCredentialRepository.existsByUsername(userSignupRequest.getUsername())) {
+        if (userCredentialRepository.existsByUsername(userSignupRequest.username())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
         }
         Role role = roleRepository.findByName(RoleName.USER)
             .orElseThrow(() -> new IllegalStateException("USER role not seeded; RoleInitializer must run first"));
-        User user = new User(userSignupRequest.getFirstName(), userSignupRequest.getLastName(), role);
-        UserCredential userCredential = new UserCredential(user, userSignupRequest.getUsername(), passwordEncoder.encode(userSignupRequest.getPassword()));
+        User user = new User(userSignupRequest.firstName(), userSignupRequest.lastName(), role);
+        UserCredential userCredential = new UserCredential(user, userSignupRequest.username(), passwordEncoder.encode(userSignupRequest.password()));
         userCredential.setUser(user);
         userCredentialRepository.save(userCredential);
     }
