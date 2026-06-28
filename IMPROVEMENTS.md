@@ -243,8 +243,11 @@ in as work lands.
    mirroring `AuthserviceApplicationTests`.
 9. Hygiene — ✅ Done — Pass 1: explicit imports in `UserController` (dropped the wildcard),
    `@Transactional(readOnly = true)` on `getAllUsers`, removed the redundant `lombok.Getter` import in
-   `UserSignupRequest`, and `server.port` is now `${PORT:8081}`. Still pending: `status_enum` Postgres
-   ENUM → `VARCHAR + CHECK` (the old #5.6 nit).
+   `UserSignupRequest`, and `server.port` is now `${PORT:8081}`. ✅ Done — Pass 9: the leftover
+   `status_enum` Postgres ENUM → `VARCHAR(20) + CHECK (status IN ('ACTIVE','INACTIVE'))` (the old #5.6
+   nit) — Flyway `V6` converts the column on `app_role`/`app_user`/`app_user_credential` and drops the
+   now-unused `status_enum` type; `BaseEntity` drops `@JdbcTypeCode(NAMED_ENUM)` (kept
+   `@Enumerated(STRING)`, which maps the enum to the new `varchar`). Shipped with #16 (same migration).
 
 ### C. Spring Boot 4 / Spring Framework 7 features to adopt
 
@@ -304,7 +307,16 @@ in as work lands.
     (a binding/validation failure on any of the three records would fail startup) plus the slice/unit
     tests.
 16. Spring Data JPA auditing (`@CreatedDate`/`@LastModifiedDate` + `@EnableJpaAuditing`) replacing the
-    hand-rolled `@PrePersist`/`@PreUpdate`; switch audit timestamps to `Instant`/`timestamptz` (UTC). **Pending.**
+    hand-rolled `@PrePersist`/`@PreUpdate`; switch audit timestamps to `Instant`/`timestamptz` (UTC). ✅ Done —
+    Pass 9: a `JpaAuditingConfiguration` (`@EnableJpaAuditing`) + `@EntityListeners(AuditingEntityListener)` on
+    `BaseEntity` now populate `createdAt`/`updatedAt` (annotated `@CreatedDate`/`@LastModifiedDate`); the
+    hand-rolled `onCreate`/`onUpdate` callbacks are gone. The three audit fields moved `LocalDateTime` →
+    `Instant` and the columns `TIMESTAMP` → `timestamptz` (Flyway `V6`, existing naive values read `AT TIME
+    ZONE 'UTC'`), so timestamps are zone-unambiguous. Status is no longer stamped by a callback, so the field
+    initializes to `Status.ACTIVE` (DB `DEFAULT 'ACTIVE'` kept as backstop); `softDelete()` uses `Instant.now()`.
+    `ddl-auto` is `none` (Flyway-managed) so there's no Hibernate validation mismatch. Verified by the full
+    `@SpringBootTest` boot (Flyway V1–V6 applies cleanly) + `UserServiceTest` soft-delete (`deletedAt` now
+    `Instant`, asserted `isNotNull()`).
 
 ### E. Architecture / security (forward-looking)
 
@@ -323,7 +335,15 @@ in as work lands.
 19. Multi-project RBAC: many-to-many user↔roles↔authorities and per-client audience/scopes (resource
     indicators) instead of the single `@ManyToOne` role + single global `aud`.
 20. Test the token customizer end-to-end (mint a real SAS token; assert `sub`=UUID / `role` / `aud`) —
-    currently the most security-critical custom code is uncovered.
+    currently the most security-critical custom code is uncovered. ✅ Done — Pass 9: added
+    `tokenCustomizerStampsSubRoleAndAudience()` to the full-app `@SpringBootTest` (reusing the Testcontainers
+    context). It drives the real Authorization Code + PKCE flow over MockMvc — `GET /oauth2/authorize`
+    (params in the query string, authenticated via `spring-security-test`'s `.with(user(...))`) → extract the
+    code → `POST /oauth2/token` with client HTTP Basic + `code_verifier` → then parses the minted access token
+    (Nimbus `SignedJWT`) and asserts `sub` = the user UUID, the `role` claim = `USER`, and `aud` contains
+    `authservice`. Requests scope `profile roles` (not `openid`) — an ID token would need `auth_time`, which
+    SAS derives from the SS7 `FactorGrantedAuthority` a real login carries but the synthetic test principal
+    does not; the access token (the thing under test) needs none. Added `spring-security-test` as a test dep.
 21. **Onboarding more OAuth2 clients without editing `application.yml`.** Today `oauth2-client.*`
     (`RegisteredClientProperties`) models exactly **one** client, used by `RegisteredClientInitializer`
     only to seed/reconcile `authservice-client` on startup. But clients are already persisted in Postgres
