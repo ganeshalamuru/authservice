@@ -1,21 +1,33 @@
 package com.gan.authservice;
 
+import static com.gan.authservice.constants.JWTConstants.JWT_AUTHORITIES_CLAIM_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gan.authservice.constants.RegisteredClientProperties;
 import com.gan.authservice.repository.UserCredentialRepository;
 import com.gan.authservice.service.UserService;
+import com.jayway.jsonpath.JsonPath;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +37,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -54,6 +68,9 @@ class AuthserviceApplicationTests {
 
     @Autowired
     private UserCredentialRepository userCredentialRepository;
+
+    @Autowired
+    private RegisteredClientProperties clientProperties;
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
@@ -146,6 +163,75 @@ class AuthserviceApplicationTests {
         // The partial unique index (V5) frees the name, so it can be registered again.
         mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isCreated());
+    }
+
+    @Test
+    void tokenCustomizerStampsSubRoleAndAudience() throws Exception {
+        // Register a user; RegistrationService assigns the USER role.
+        String body = "{\"username\":\"tokuser\",\"password\":\"s3cret\","
+            + "\"firstName\":\"Token\",\"lastName\":\"User\"}";
+        mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isCreated());
+        UUID userId = userCredentialRepository.findByUsername("tokuser").orElseThrow().getUser().getId();
+
+        // PKCE: code_challenge = BASE64URL(SHA-256(code_verifier)), method S256.
+        String codeVerifier = randomUrlSafe(32);
+        String codeChallenge = base64Url(sha256(codeVerifier));
+        String redirectUri = clientProperties.redirectUris().getFirst();
+
+        // Authorize as the user in one shot (consent is disabled for this client) -> 302 to the
+        // redirect_uri carrying the authorization code. SAS reads these from the query string
+        // (request.getQueryString()), so they must live in the URL, not MockMvc .param().
+        URI authorizeUri = UriComponentsBuilder.fromPath("/oauth2/authorize")
+            .queryParam("response_type", "code")
+            .queryParam("client_id", clientProperties.clientId())
+            .queryParam("redirect_uri", redirectUri)
+            // Request only access-token scopes (no "openid"): an OIDC ID token would need auth_time,
+            // which SAS derives from the SS7 FactorGrantedAuthority a real form login carries but the
+            // synthetic .with(user(...)) here does not. The access token (asserted below) needs none.
+            .queryParam("scope", "profile roles")
+            .queryParam("code_challenge", codeChallenge)
+            .queryParam("code_challenge_method", "S256")
+            .queryParam("state", randomUrlSafe(16))
+            .build().encode().toUri();
+        MvcResult authorize = mockMvc.perform(get(authorizeUri).with(user("tokuser")))
+            .andExpect(status().is3xxRedirection())
+            .andReturn();
+        String location = authorize.getResponse().getRedirectedUrl();
+        assertThat(location).as("redirect to the client callback").isNotNull();
+        String code = UriComponentsBuilder.fromUriString(location).build().getQueryParams().getFirst("code");
+        assertThat(code).as("authorization code in the callback redirect").isNotNull();
+
+        // Exchange the code (with client Basic auth + the original verifier) for tokens.
+        MvcResult token = mockMvc.perform(post("/oauth2/token")
+                .with(httpBasic(clientProperties.clientId(), clientProperties.clientSecret()))
+                .param("grant_type", "authorization_code")
+                .param("code", code)
+                .param("redirect_uri", redirectUri)
+                .param("code_verifier", codeVerifier))
+            .andExpect(status().isOk())
+            .andReturn();
+        String accessToken = JsonPath.read(token.getResponse().getContentAsString(), "$.access_token");
+
+        // The token customizer must stamp sub = user UUID, the role claim, and the configured audience.
+        JWTClaimsSet claims = SignedJWT.parse(accessToken).getJWTClaimsSet();
+        assertThat(claims.getSubject()).isEqualTo(userId.toString());
+        assertThat(claims.getStringClaim(JWT_AUTHORITIES_CLAIM_NAME)).isEqualTo("USER");
+        assertThat(claims.getAudience()).contains("authservice");
+    }
+
+    private static String randomUrlSafe(int bytes) {
+        byte[] buffer = new byte[bytes];
+        new SecureRandom().nextBytes(buffer);
+        return base64Url(buffer);
+    }
+
+    private static byte[] sha256(String value) throws NoSuchAlgorithmException {
+        return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String base64Url(byte[] bytes) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     /** A single-key JWK Set (private params included), matching the shape of the jwt_jwks secret. */
