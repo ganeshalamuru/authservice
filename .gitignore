@@ -41,3 +41,6 @@ out/
 ### Scratch demo screenshots (keep curated ones intentionally) ###
 demo-*.png
 !demo-04-all-steps.png
+
+### Claude Code — personal/local overrides only (shared config is committed) ###
+.claude/settings.local.json

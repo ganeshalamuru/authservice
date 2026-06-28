@@ -74,10 +74,33 @@ local Postgres / secret files):
 
 - Config via `@ConfigurationProperties` classes registered in `AuthserviceApplication` (e.g. `JwtProperties`, `RegisteredClientProperties`).
 - Secrets loaded from files via Spring Boot **config tree** (`spring.config.import=configtree:` → `SECRETS_DIR`) — DB password and JWT private key; never hard-code them.
+- Regenerate the `jwt_jwks` secret with `node scripts/gen-jwks.js` (no deps; `--compact` for a
+  one-line file, `--from-pem` to preserve an existing key). The **first** key in the set signs;
+  rotate by prepending a fresh key. Write it to the extensionless `$SECRETS_DIR/jwt_jwks` file.
 - `application.yml` pulls deployment values from env vars with sensible local defaults.
 - Errors surfaced via `ResponseStatusException` / `GlobalExceptionHandler`.
+- **Flyway migrations** (`src/main/resources/db/migration`) are versioned + **forward-only** —
+  never edit an applied `V{n}` file; add a new `V{n}__snake_desc.sql` (next is `V7`). Postgres
+  dialect; established patterns: **partial** unique index (`WHERE deleted_at IS NULL`) for
+  soft-delete uniqueness, `varchar(20) + CHECK` over Postgres `ENUM`, `timestamptz` audit columns.
+  The `oauth2_*` tables are SAS-owned (created in `V3`) — don't hand-edit them. See the
+  `db-migration` skill.
+
+## Testing
+
+- Tests use **Testcontainers** (`testcontainers-postgresql`), so **Docker must be running** or
+  they fail at startup.
+- **CI does not run the tests** — the GitHub Actions build is `./gradlew clean build -x test`.
+  Tests are effectively local-only; run them yourself before pushing if you touched tested code.
+
+## Project automation (`.claude/`)
+
+- Skills: `build-check` (build/inspect/run via the JetBrains MCP), `db-migration` (scaffold a
+  Flyway migration to convention).
+- Agent: `auth-security-reviewer` — OAuth2/SAS-tuned security review; prefer it over the generic
+  review for changes to security config, the token customizer, SAS setup, or the resource server.
 
 ## Local infra
 
-Postgres is exposed on host port **5432**
-Docker is available but check if it's up or not
+Postgres is exposed on host port **5432**. Docker is available but check if it's up or not —
+it's required for running the Testcontainers-based tests as well as the DB.
