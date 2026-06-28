@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OAuth2 flow visualizer · authservice</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #171d2b;
+    --panel-2: #1e2535;
+    --border: #2a3346;
+    --text: #d7deea;
+    --muted: #8b97ab;
+    --accent: #5aa9ff;
+    --get: #3fb950;
+    --post: #5aa9ff;
+    --ok: #3fb950;
+    --redirect: #d2a23b;
+    --err: #f0606b;
+    --code: #e6edf3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 28px 20px 80px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .intro {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; margin-bottom: 22px; font-size: 14px;
+  }
+  .intro b { color: var(--accent); }
+  .intro .flow { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  form {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px; margin-bottom: 24px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.full { grid-column: 1 / -1; }
+  label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  input[type=text], input[type=password] {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+    color: var(--text); padding: 9px 11px; font-size: 14px; font-family: inherit;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  .check { display: flex; align-items: center; gap: 9px; }
+  .check input { width: 16px; height: 16px; }
+  .check label { text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--text); }
+  #signupFields { display: none; grid-column: 1 / -1; grid-template-columns: 1fr 1fr; gap: 14px; }
+  #signupFields.show { display: grid; }
+  button {
+    grid-column: 1 / -1; justify-self: start;
+    background: var(--accent); color: #06101f; border: none; border-radius: 8px;
+    padding: 11px 22px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: .55; cursor: default; }
+  .toolbar {
+    display: none; align-items: center; gap: 12px; margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .toolbar.show { display: flex; }
+  .toolbar button { grid-column: auto; padding: 8px 16px; }
+  .nav-btn { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  .counter { color: var(--muted); font-size: 14px; }
+  .spacer { flex: 1; }
+  .toggle { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
+  .step {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    margin-bottom: 18px; overflow: hidden;
+  }
+  .step-head { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .step-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .kind {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    padding: 2px 8px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted);
+  }
+  .kind.computation { color: var(--redirect); border-color: var(--redirect); }
+  .step-num { color: var(--muted); font-weight: 400; font-size: 14px; }
+  .explanation { color: var(--muted); font-size: 13.5px; margin-top: 7px; }
+  .exchange { padding: 14px 18px; }
+  .exchange + .exchange { border-top: 1px dashed var(--border); }
+  .ex-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 9px; }
+  .line { font-family: "SF Mono", "Cascadia Code", Consolas, monospace; font-size: 13px; word-break: break-all; }
+  .pill { font-weight: 700; padding: 1px 8px; border-radius: 5px; font-size: 12px; margin-right: 8px; }
+  .m-GET { background: rgba(63,185,80,.16); color: var(--get); }
+  .m-POST { background: rgba(90,169,255,.16); color: var(--post); }
+  .m-PUT, .m-DELETE, .m-PATCH { background: rgba(210,162,59,.16); color: var(--redirect); }
+  .st-2 { background: rgba(63,185,80,.16); color: var(--ok); }
+  .st-3 { background: rgba(210,162,59,.16); color: var(--redirect); }
+  .st-4, .st-5 { background: rgba(240,96,107,.16); color: var(--err); }
+  .headers { margin: 11px 0 0; font-family: "SF Mono", "Cascadia Code", Consolas, monospace; font-size: 12.5px; }
+  .headers div { padding: 1px 0; color: var(--muted); word-break: break-all; }
+  .headers .hk { color: var(--text); }
+  pre.body {
+    margin: 11px 0 0; background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+    padding: 11px 13px; overflow-x: auto; font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 12.5px; color: var(--code); white-space: pre-wrap; word-break: break-word;
+  }
+  .empty-body { color: var(--muted); font-style: italic; font-size: 12.5px; margin-top: 9px; }
+  .error {
+    background: rgba(240,96,107,.12); border: 1px solid var(--err); color: #ffd7da;
+    border-radius: 9px; padding: 14px 16px; font-size: 14px; margin-bottom: 20px;
+  }
+  .error pre { white-space: pre-wrap; margin: 8px 0 0; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>OAuth2 flow visualizer</h1>
+  <p class="sub">Authorization Code + PKCE · Spring Authorization Server · dev-only</p>
+
+  <div class="intro">
+    This page asks the backend to <b>act as the OAuth2 client</b> and replay the whole login flow
+    against this server, capturing every HTTP request and response — including the browser redirects
+    (302s) that are normally invisible. Step through them one at a time to see exactly what is sent
+    and returned at each hop.
+    <div class="flow">
+      discovery → jwks → PKCE → authorize → login → callback (code) → token → call API → refresh → revoke
+    </div>
+  </div>
+
+  <form id="runForm">
+    <div class="field">
+      <label for="username">Username</label>
+      <input type="text" id="username" value="superadmin" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="off" placeholder="the user's password">
+    </div>
+    <div class="field full check">
+      <input type="checkbox" id="signupFirst">
+      <label for="signupFirst">Sign up a new user first (POST /auth/signup before logging in)</label>
+    </div>
+    <div id="signupFields">
+      <div class="field">
+        <label for="firstName">First name</label>
+        <input type="text" id="firstName" value="Demo" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="lastName">Last name</label>
+        <input type="text" id="lastName" value="User" autocomplete="off">
+      </div>
+    </div>
+    <button type="submit" id="runBtn">Run the flow</button>
+  </form>
+
+  <div id="error" class="error" style="display:none"></div>
+
+  <div class="toolbar" id="toolbar">
+    <button type="button" class="nav-btn" id="prevBtn">&larr; Prev</button>
+    <button type="button" class="nav-btn" id="nextBtn">Next &rarr;</button>
+    <span class="counter" id="counter"></span>
+    <span class="spacer"></span>
+    <label class="toggle"><input type="checkbox" id="showAll"> show all steps</label>
+  </div>
+
+  <div id="steps"></div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let steps = [];
+  let current = 0;
+
+  $('signupFirst').addEventListener('change', (e) => {
+    $('signupFields').classList.toggle('show', e.target.checked);
+  });
+
+  $('runForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      username: $('username').value.trim(),
+      password: $('password').value,
+      signupFirst: $('signupFirst').checked,
+      firstName: $('firstName').value.trim(),
+      lastName: $('lastName').value.trim()
+    };
+    setError(null);
+    $('runBtn').disabled = true;
+    $('runBtn').textContent = 'Running…';
+    try {
+      const res = await fetch('/demo/oauth2/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        await showHttpError(res);
+        return;
+      }
+      steps = await res.json();
+      current = 0;
+      render();
+    } catch (err) {
+      setError('Request failed: ' + err.message);
+    } finally {
+      $('runBtn').disabled = false;
+      $('runBtn').textContent = 'Run the flow';
+    }
+  });
+
+  async function showHttpError(res) {
+    let msg = 'HTTP ' + res.status + ' ' + res.statusText;
+    let detail = '';
+    try {
+      const data = await res.json();
+      detail = JSON.stringify(data, null, 2);
+    } catch (_) { /* not json */ }
+    if (res.status === 404) {
+      msg = 'The demo endpoint was not found (404). Start the app with DEMO_OAUTH2_ENABLED=true.';
+    }
+    setError(msg, detail);
+  }
+
+  function setError(msg, detail) {
+    const box = $('error');
+    if (!msg) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = 'block';
+    box.innerHTML = '<b>' + escapeHtml(msg) + '</b>' + (detail ? '<pre>' + escapeHtml(detail) + '</pre>' : '');
+  }
+
+  $('prevBtn').addEventListener('click', () => { if (current > 0) { current--; render(); } });
+  $('nextBtn').addEventListener('click', () => { if (current < steps.length - 1) { current++; render(); } });
+  $('showAll').addEventListener('change', render);
+
+  function render() {
+    const container = $('steps');
+    container.innerHTML = '';
+    if (steps.length === 0) { $('toolbar').classList.remove('show'); return; }
+    $('toolbar').classList.add('show');
+    const all = $('showAll').checked;
+    $('prevBtn').disabled = all || current === 0;
+    $('nextBtn').disabled = all || current === steps.length - 1;
+    $('counter').textContent = all
+      ? steps.length + ' steps'
+      : 'Step ' + (current + 1) + ' of ' + steps.length;
+    const toShow = all ? steps : [steps[current]];
+    toShow.forEach((s) => container.appendChild(renderStep(s)));
+  }
+
+  function renderStep(step) {
+    const el = document.createElement('div');
+    el.className = 'step';
+    const kindClass = step.kind === 'computation' ? 'kind computation' : 'kind';
+    let html = '<div class="step-head">'
+      + '<div class="step-title"><span class="step-num">' + step.index + '.</span>'
+      + escapeHtml(step.title) + '<span class="' + kindClass + '">' + step.kind + '</span></div>'
+      + '<div class="explanation">' + escapeHtml(step.explanation) + '</div></div>';
+
+    if (step.kind === 'computation') {
+      html += '<div class="exchange"><pre class="body">' + escapeHtml(step.details || '') + '</pre></div>';
+    } else {
+      if (step.request) html += renderExchange(step.request, 'request');
+      if (step.response) html += renderExchange(step.response, 'response');
+    }
+    el.innerHTML = html;
+    return el;
+  }
+
+  function renderExchange(ex, type) {
+    let head;
+    if (type === 'request') {
+      head = '<span class="pill m-' + escapeHtml(ex.method) + '">' + escapeHtml(ex.method) + '</span>'
+        + '<span>' + escapeHtml(ex.url) + '</span>';
+    } else {
+      const cls = 'st-' + String(ex.status).charAt(0);
+      head = '<span class="pill ' + cls + '">' + ex.status + '</span>'
+        + '<span>' + escapeHtml(ex.statusText || '') + '</span>';
+    }
+    let html = '<div class="exchange"><div class="ex-label">' + type + '</div>'
+      + '<div class="line">' + head + '</div>';
+    html += renderHeaders(ex.headers);
+    if (ex.body && ex.body.length) {
+      html += '<pre class="body">' + escapeHtml(ex.body) + '</pre>';
+    } else {
+      html += '<div class="empty-body">(no body)</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderHeaders(headers) {
+    const keys = headers ? Object.keys(headers) : [];
+    if (keys.length === 0) return '';
+    let out = '<div class="headers">';
+    keys.forEach((k) => {
+      out += '<div><span class="hk">' + escapeHtml(k) + ':</span> ' + escapeHtml(headers[k]) + '</div>';
+    });
+    return out + '</div>';
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@ package com.gan.authservice.configuration;
 import static com.gan.authservice.constants.JWTConstants.JWT_AUTHORITIES_CLAIM_NAME;
 
 import com.gan.authservice.constants.JwtProperties;
+import com.gan.authservice.demo.OAuth2DemoProperties;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
@@ -65,20 +66,28 @@ public class SecurityConfiguration {
      */
     @Bean
     @Order(3)
-    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http,
+        OAuth2DemoProperties demoProperties) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/signup", "/login", "/error").permitAll()
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                // Liveness/readiness probes for compose/k8s; health details stay hidden (show-details
-                // defaults to never), and no other actuator endpoint is exposed over HTTP.
-                .requestMatchers("/actuator/health/**").permitAll()
-                // Chrome DevTools auto-probes this while you're on /login; permit it so it 404s
-                // quietly instead of being captured as the saved request and hijacking the
-                // post-login redirect away from /oauth2/authorize.
-                .requestMatchers("/.well-known/appspecific/**").permitAll()
-                .anyRequest().authenticated())
+            .authorizeHttpRequests(auth -> {
+                auth
+                    .requestMatchers("/auth/signup", "/login", "/error").permitAll()
+                    .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                    // Liveness/readiness probes for compose/k8s; health details stay hidden (show-details
+                    // defaults to never), and no other actuator endpoint is exposed over HTTP.
+                    .requestMatchers("/actuator/health/**").permitAll()
+                    // Chrome DevTools auto-probes this while you're on /login; permit it so it 404s
+                    // quietly instead of being captured as the saved request and hijacking the
+                    // post-login redirect away from /oauth2/authorize.
+                    .requestMatchers("/.well-known/appspecific/**").permitAll();
+                // OAuth2 flow visualizer (dev-only): expose the page + replay endpoint only when the
+                // demo is enabled, so they stay invisible (the page requires auth, /demo 404s) in prod.
+                if (demoProperties.enabled()) {
+                    auth.requestMatchers("/demo/**", "/oauth2-demo.html").permitAll();
+                }
+                auth.anyRequest().authenticated();
+            })
             .formLogin(form -> form.permitAll());
         return http.build();
     }
