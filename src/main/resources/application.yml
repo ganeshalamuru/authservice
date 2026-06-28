@@ -33,6 +33,12 @@ oauth2-client:
     client-secret: ${OAUTH2_CLIENT_SECRET:dev-client-secret}
     redirect-uris: ${OAUTH2_REDIRECT_URIS:http://127.0.0.1:8081/login/oauth2/code/authservice,https://oauth.pstmn.io/v1/callback,http://127.0.0.1:8081/swagger-ui/oauth2-redirect.html}
     refresh-token-ttl: ${OAUTH2_REFRESH_TOKEN_TTL:24h}
+demo:
+    oauth2:
+        # OAuth2 flow visualizer (POST /demo/oauth2/run + /oauth2-demo.html). Off by default: the
+        # replay endpoint logs in with supplied credentials and reveals tokens, so keep it disabled
+        # outside local/dev. Set DEMO_OAUTH2_ENABLED=true to register the controller.
+        enabled: ${DEMO_OAUTH2_ENABLED:false}
 super-admin:
     username: ${SUPER_ADMIN_USERNAME:superadmin}
     password: ${SUPER_ADMIN_PASSWORD:}
