@@ -34,3 +34,10 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Playwright MCP scratch ###
+.playwright-mcp/
+
+### Scratch demo screenshots (keep curated ones intentionally) ###
+demo-*.png
+!demo-04-all-steps.png
