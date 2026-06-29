@@ -368,3 +368,99 @@ in as work lands.
     **Caveat (ties to #19):** the token customizer stamps `aud = jwt.audience` (single global value) on
     *every* access token regardless of client, so however clients are added they currently all share one
     audience. Pair whichever option with #19 (per-client audience/scopes) for real multi-project isolation.
+
+---
+
+## Appendix — `authservice` vs. Keycloak (build-vs-adopt note)
+
+A standalone strategic note (not a work item): how this server compares to **Keycloak**, what the gaps
+are, and whether the long-term plan should be to keep building `authservice` or adopt Keycloak. References
+point at the code as it exists today.
+
+### Framing
+
+`authservice` is a genuinely **standards-compliant OAuth2/OIDC Authorization Server**, not a toy. The
+hard, easy-to-get-wrong protocol core is done and tested. Keycloak's advantage is **not** the protocol —
+it is the enormous surround (MFA, social/enterprise login, admin UI, self-service account flows,
+brute-force protection, multi-tenancy) plus a security team tracking CVEs.
+
+### What `authservice` already matches Keycloak on
+
+These are real and working, not aspirations:
+
+- **Authorization Code + PKCE** grant, refresh-token rotation (`reuseRefreshTokens(false)`),
+  `/oauth2/revoke` (`AuthorizationServerConfiguration`).
+- **JWKS endpoint + OIDC discovery** (`/.well-known/openid-configuration`) — consumers validate offline.
+- **Stateless RS256 access tokens** with `kid`, issuer + audience validation on the resource server
+  (`SecurityConfiguration.jwtDecoder`).
+- **Tailored token contract** — `sub` = user UUID, `role` claim, controlled `aud`; no Keycloak claim
+  bloat (`jwtTokenCustomizer`).
+- **JDBC-persisted clients & authorizations** (Flyway `V3`) — restart-safe, horizontally scalable.
+- Key-rotation design (prepend-to-set), soft-delete, JPA auditing, virtual threads, actuator health.
+
+For a single app or a small set of first-party services this is sufficient — and arguably nicer than
+Keycloak (no realm/client/mapper config sprawl, no second platform to operate).
+
+### The big gaps — what Keycloak gives "for free" that we'd have to build
+
+Each is weeks-to-months of security-critical work to do well:
+
+| Capability | `authservice` today | Keycloak |
+|---|---|---|
+| MFA / passkeys | ✗ none | TOTP, WebAuthn, recovery codes, step-up |
+| Social / enterprise login | ✗ none | Google/GitHub/SAML/OIDC brokering |
+| User federation | ✗ Postgres only | LDAP / AD / Kerberos |
+| Admin UI + Admin REST API | ✗ (one ADMIN endpoint) | Full console (users, clients, roles, sessions) |
+| Self-service account flows | ✗ signup only | Password reset, email verification, profile, sessions |
+| Email / SMTP flows | ✗ none | Verification, reset, magic links, templates |
+| Brute-force / lockout / rate-limit | ✗ deferred (#18) | Built-in detection + temporary lockout |
+| Multi-tenancy | ✗ single global `aud`, one realm | Realms = isolated user/client populations |
+| RBAC depth | Single `@ManyToOne` role (`User.java`) | Composite/client roles, groups, scopes |
+| Protocols | OIDC/OAuth2 only | + SAML 2.0, token exchange, CIBA, device flow |
+| Sessions | Stateless; no pre-expiry access-token revoke | Server-side sessions, SLO, cross-device revoke |
+| Audit / events | App logs only | Login + admin event streams |
+| Security maintenance | We own every CVE | Dedicated security team + CVE pipeline |
+
+Items **#19** (per-client audience/scopes) and **#21** (client onboarding) above are precisely the
+multi-tenant/admin features Keycloak ships by default.
+
+### Near-term improvements if we keep building (priority order)
+
+1. **Brute-force / rate-limiting on `/login` and `/auth/signup`** (#18, pending) — biggest *security*
+   gap vs Keycloak: an unthrottled password endpoint.
+2. **Account lifecycle flows** — password reset + email verification (most-used "boring" features we
+   lack; error-prone to hand-roll — lean on Spring primitives).
+3. **`client_credentials` grant + a seeded service/registrar client** — service-to-service auth; also
+   unblocks self-service client registration (#21 option A).
+4. **Per-client audience & scopes (#19)** — today one global `aud` on every token
+   (`AuthorizationServerConfiguration` customizer), so clients can't be isolated.
+5. **Scheduled pruning of `oauth2_authorization` (#17)** — SAS state grows forever otherwise.
+6. **Richer RBAC** — move off single `@ManyToOne` role to roles↔authorities (#19).
+7. **Admin endpoints / minimal UI** for users & clients (#21 option B), guarded by the ADMIN role.
+8. **MFA (TOTP)** — to seriously close the Keycloak gap; large effort.
+
+Items 1–3 matter most before any real user touches this.
+
+### Long-term plan: keep building vs adopt Keycloak
+
+Decide by **who the users are and how many tenants/IdPs are needed**.
+
+- **Keep `authservice`** if it's a portfolio/learning project (huge educational ROI, hard part is done),
+  **or** it serves a small set of **first-party** apps with **local** username/password identity and
+  simple RBAC. Keycloak would be overkill — a second platform to operate for unused features.
+- **Adopt Keycloak** (or a managed service — Auth0 / Entra ID / Cognito) once **any** of these is a real
+  requirement: MFA/passkeys, **social or enterprise (LDAP/SAML) login**, multi-tenant isolation, a
+  non-developer admin UI, or self-service account recovery at scale. Reimplementing those means owning
+  authentication security indefinitely (every CVE, every recovery edge case, every lockout bypass) —
+  exactly where homegrown auth servers fail in production.
+
+**Recommended stance: migrate, not rebuild.** Keep `authservice` as today's issuer. If we hit a Keycloak
+trigger, two options preserve the work instead of throwing it away:
+
+- **Front Keycloak with our token contract** — Keycloak owns users/MFA/social; a thin layer keeps claims
+  in the shape our services expect; or
+- **Make `authservice` an OIDC client that brokers to Keycloak** as an upstream IdP.
+
+Either way the standards-compliant core survives; we stop re-implementing Keycloak's surround. **Line in
+the sand:** the first hard requirement for MFA / social login / multi-tenant / admin-UI is the signal to
+adopt Keycloak rather than extend `authservice` further.
